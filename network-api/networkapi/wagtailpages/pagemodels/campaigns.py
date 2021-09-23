@@ -23,6 +23,7 @@ from ..utils import (
 )
 
 
+@register_snippet
 class CTA(models.Model):
     name = models.CharField(
         default='',
@@ -218,8 +219,8 @@ class CampaignPage(MiniSiteNameSpace):
     these pages come with sign-a-petition CTAs
     """
     cta = models.ForeignKey(
-        'Petition',
-        related_name='page',
+        'CTA',
+        related_name='campaign_page_for_cta',
         blank=True,
         null=True,
         on_delete=models.SET_NULL,
@@ -284,8 +285,8 @@ class BanneredCampaignPage(PrimaryPage):
     # Note that this is a different related_name, as the `page`
     # name is already taken as back-referenced to CampaignPage.
     cta = models.ForeignKey(
-        'Petition',
-        related_name='bcpage',
+        'CTA',
+        related_name='banner_page_for_cta',
         blank=True,
         null=True,
         on_delete=models.SET_NULL,
