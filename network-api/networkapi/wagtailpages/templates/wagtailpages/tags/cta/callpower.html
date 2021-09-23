@@ -1,0 +1,21 @@
+{% load i18n static %}
+
+<div class="callpower">
+    <h1>{{ cta.header | safe }}</h1>
+    <p>{{ cta.description | safe }}</p>
+
+    <div>
+        <input type="hidden" name="campaignId" value="{{ value.campaignId }}">
+        <input type="hidden" name="newsletter" value="{{ cta.newsletter }}">
+
+        <!--
+        <input type="text" name="userLocation" placeholder='{% trans "Your location" %}'>
+        <input type="text" name="userCountry" placeholder='{% trans "Your country" %}'>
+        -->
+
+        <input type="text" name="userPhone" placeholder='{% trans "Your phone number" %}'>
+    </div>
+
+    <button class="make-the-call .btn .btn-primary">{% trans "Make the call" %}</button>
+    <script src='{% static "_js/callpower.compiled.js" %}'' async defer></script>
+</div>

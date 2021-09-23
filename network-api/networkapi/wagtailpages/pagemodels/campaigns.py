@@ -56,6 +56,23 @@ class CTA(models.Model):
 
 
 @register_snippet
+class Callpower(TranslatableMixin, CTA):
+    campaign_id = models.CharField(
+        max_length=20,
+        help_text='Which Callpower campaign identifier should this CTA be tied to?',
+    )
+
+    translatable_fields = [
+        # Fields from the CTA model
+        TranslatableField('header'),
+        TranslatableField('description'),
+    ]
+
+    class Meta(TranslatableMixin.Meta):
+        verbose_name = 'callpower snippet'
+
+
+@register_snippet
 class Signup(TranslatableMixin, CTA):
     campaign_id = models.CharField(
         max_length=20,
