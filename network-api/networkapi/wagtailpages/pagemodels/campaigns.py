@@ -241,7 +241,7 @@ class CampaignPage(MiniSiteNameSpace):
         blank=True,
         null=True,
         on_delete=models.SET_NULL,
-        help_text='Choose existing or create new sign-up form'
+        help_text='Choose one of our call-to-action snippets, or create a new one.'
     )
 
     def get_donation_modal_json(self):
@@ -307,7 +307,7 @@ class BanneredCampaignPage(PrimaryPage):
         blank=True,
         null=True,
         on_delete=models.SET_NULL,
-        help_text='Choose an existing, or create a new, pettition form'
+        help_text='Choose one of our call-to-action snippets, or create a new one.'
     )
 
     signup = models.ForeignKey(

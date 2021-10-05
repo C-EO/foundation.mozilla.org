@@ -1,4 +1,5 @@
 import injectJoinUs from "./join-us.js";
+import injectCallpower from "./callpower.js";
 
 /**
  * Inject React components
@@ -7,4 +8,5 @@ import injectJoinUs from "./join-us.js";
  */
 export const injectCommonReactComponents = (apps, siteUrl) => {
   injectJoinUs(apps, siteUrl);
+  injectCallpower(apps, siteUrl);
 };
