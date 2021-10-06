@@ -27,10 +27,11 @@ def cta(context, page):
         'cta_type': None
     }
 
-    for class_type in [sub.__name__.lower() for sub in CTA.__subclasses__()]:
+    for (Subclass, subclass_name) in [(sub, sub.__name__.lower(),) for sub in CTA.__subclasses__()]:
         try:
-            specific = getattr(page.cta, class_type)
-            cta['cta_type'] = class_type
+            specific = getattr(page.cta, subclass_name)
+            cta['cta'] = Subclass.objects.get(pk=page.cta.pk)
+            cta['cta_type'] = subclass_name
             break
         except AttributeError:
             pass
