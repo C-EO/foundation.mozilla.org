@@ -75,6 +75,8 @@
     "autoprefixer": "^10.3.4",
     "axe-core": "^4.1.4",
     "bootstrap": "^4.6.0",
+    "browser": "^0.2.6",
+    "browser-sync": "^2.27.5",
     "chart.js": "3.5.1",
     "classnames": "2.3.1",
     "countup.js": "^2.0.7",
@@ -96,6 +98,7 @@
     "sass": "^1.38.2",
     "shx": "^0.3.3",
     "swiper": "^6.7.5",
+    "sync": "^0.2.5",
     "tailwindcss": "^2.2.9",
     "uuid": "^8.3.2",
     "whatwg-fetch": "^3.6.2"

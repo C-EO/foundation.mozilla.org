@@ -1,26 +1,40 @@
 {% load i18n static %}
 
 <div class="callpower-cta" data-campaign-id="{{ cta.campaign_id }}" data-newsletter="{{ cta.newsletter }}">
-    <div class="cta-form">
-        <h1>{{ cta.header | safe }}</h1>
-        <p>{{ cta.description | safe }}</p>
+  <div class="cta-form">
+    <h5 class="h5-heading">{{ cta.header | safe }}</h1>
 
-        <div>
-            <!--
+      <p>{{ cta.description | safe }}</p>
+
+      <div>
+        <!--
             <input type="text" name="userLocation" placeholder='{% trans "Your location" %}'>
             <input type="text" name="userCountry" placeholder='{% trans "Your country" %}'>
             -->
-            <input type="text" name="userPhone" placeholder='{% trans "Your phone number" %}'>
-        </div>
+        <input type="text" name="userPhone" placeholder="{% trans " Your phone number" %}"
+          class="tw-w-full tw-transition-colors tw-border-solid tw-font-sans tw-border tw-px-3 tw-py-4 tw-my-1 tw-text-xl tw-text-black tw-border-[#ced4da] focus:tw-border-[#80bdff] tw-outline-none">
+      </div>
 
-        <button class="make-the-call btn btn-primary" disabled>{% trans "Make the call" %}</button>
-        <button class="test-button btn btn-primary">TEST</button>
-    </div>
+      <button class="make-the-call btn btn-primary tw-w-full" disabled>{% trans "Make the call" %}</button>
+  </div>
 
 
-    <div class="callpower-cta thank-you tw-hidden">
-        Thanks for submitting, other data here, etc.
-    </div>
+  <div class="callpower-cta thank-you tw-hidden">
+    <h5>{% trans "We're calling you now!"%}</h5>
+
+    <p>
+      {% trans "Here's what to say:" %}
+    </p>
+
+    <p>
+      {% blocktrans %}
+      THE TEXT, SHE GOES HERE O_O
+      {% endblocktrans %}
+    </p>
+  </div>
+
+  <br>
+  <button class="toggle-button btn btn-primary">TOGGLE</button>
 </div>
 
 <script src='{% static "_js/callpower.compiled.js" %}'' async defer></script>

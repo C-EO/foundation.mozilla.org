@@ -3,22 +3,14 @@
   if (!cta) return;
 
   const { campaignId, newsletter } = cta.dataset;
-  console.log(campaignId, newsletter);
-  const userPhoneInput = cta.querySelector(`input[name="userPhone"]`);
-  const callButton = cta.querySelector(`.make-the-call`);
+  const get = cta.querySelector.bind(cta);
+  const [userPhoneInput, mainForm, thankYou, callButton] = [
+    `input[name="userPhone"]`,
+    `.cta-form`,
+    `.thank-you`,
+    `.make-the-call`,
+  ].map(get);
   callButton.removeAttribute(`disabled`);
-
-  const mainForm = cta.querySelector(`.cta-form`);
-  const thankYou = cta.querySelector(`.thank-you`);
-  const testbutton = cta.querySelector(`.test-button`);
-
-  console.log(testbutton);
-
-  testbutton.addEventListener(`click`, () => {
-    console.log(`swap test`);
-    mainForm.classList.add(`tw-hidden`);
-    thankYou.classList.remove(`tw-hidden`);
-  });
 
   const handleCallSubmit = () => {
     const userPhone = userPhoneInput.value;
@@ -37,5 +29,11 @@
   };
 
   callButton.addEventListener(`click`, handleCallSubmit);
-})();
 
+  // Testing code
+  const toggleButton = cta.querySelector(`.toggle-button`);
+  toggleButton.addEventListener(`click`, () => {
+    mainForm.classList.toggle(`tw-hidden`);
+    thankYou.classList.toggle(`tw-hidden`);
+  });
+})();
