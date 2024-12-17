@@ -1,42 +1,6 @@
 from django.apps import apps
-from django.conf import settings
-from django.core.cache import cache
-from wagtail.models import Locale
 
-from networkapi.wagtailpages.utils import get_default_locale, localize_queryset
-
-
-def get_categories_for_locale(language_code):
-    """
-    Start with the English list of categories, and replace any of them
-    with their localized counterpart, where possible, so that we don't
-    end up with an incomplete category list due to missing locale records.
-    """
-    BuyersGuideProductCategory = apps.get_model(app_label="wagtailpages", model_name="BuyersGuideProductCategory")
-    DEFAULT_LANGUAGE_CODE = settings.LANGUAGE_CODE
-    (DEFAULT_LOCALE, DEFAULT_LOCALE_ID) = get_default_locale()
-
-    default_locale_list = BuyersGuideProductCategory.objects.filter(
-        hidden=False,
-        locale=DEFAULT_LOCALE,
-    )
-
-    if language_code == DEFAULT_LANGUAGE_CODE:
-        return default_locale_list
-
-    try:
-        actual_locale = Locale.objects.get(language_code=language_code)
-    except Locale.DoesNotExist:
-        actual_locale = Locale.objects.get(language_code=DEFAULT_LANGUAGE_CODE)
-
-    return [
-        BuyersGuideProductCategory.objects.filter(
-            translation_key=cat.translation_key,
-            locale=actual_locale,
-        ).first()
-        or cat
-        for cat in default_locale_list
-    ]
+from networkapi.wagtailpages.utils import localize_queryset
 
 
 def get_buyersguide_featured_cta(page):
@@ -50,7 +14,7 @@ def get_buyersguide_featured_cta(page):
     return featured_cta
 
 
-def get_product_subset(cutoff_date, authenticated, key, products, language_code="en"):
+def get_product_subset(cutoff_date, authenticated, products, language_code="en"):
     """
     filter a queryset based on our current cutoff date,
     as well as based on whether a user is authenticated
@@ -73,7 +37,6 @@ def get_product_subset(cutoff_date, authenticated, key, products, language_code=
 
     products = annotate_product_categories_local_names(products, language_code)
 
-    cache.get_or_set(key, products, 24 * 60 * 60)  # Set cache for 24h
     return products
 
 
@@ -91,7 +54,7 @@ def _localize_category_parent(categories):
     """
     BuyersGuideProductCategory = apps.get_model(app_label="wagtailpages", model_name="BuyersGuideProductCategory")
 
-    parents_ids = list(set([category.parent.pk for category in categories if category.parent]))
+    parents_ids = list({category.parent.pk for category in categories if category.parent})
     parents = BuyersGuideProductCategory.objects.filter(id__in=parents_ids)
     parents = localize_queryset(parents)
     parents_cache = {parent.translation_key: parent for parent in parents}
@@ -104,7 +67,7 @@ def _localize_category_parent(categories):
     return categories
 
 
-def localize_categories(categories):
+def localize_categories(categories, preserve_order=True):
     """Localize a category.
 
     Localizes a category queryset by finding the localized version of the category.
@@ -117,7 +80,7 @@ def localize_categories(categories):
     Returns:
         BuyersGuideProductCategory: The localized category.
     """
-    categories = localize_queryset(categories)
+    categories = localize_queryset(categories, preserve_order=preserve_order)
     categories = categories.select_related("parent").with_usage_annotation()
     categories = _localize_category_parent(categories)
     return categories

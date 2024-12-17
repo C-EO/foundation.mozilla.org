@@ -1,12 +1,10 @@
 import typing
 
-from django import http
 from django.db import models
 from modelcluster import fields as cluster_fields
 from wagtail import blocks, fields, images
 from wagtail import models as wagtail_models
 from wagtail.admin import panels as panels
-from wagtail.images import edit_handlers as image_panels
 from wagtail_localize.fields import SynchronizedField, TranslatableField
 
 from networkapi.utility import orderables
@@ -15,10 +13,6 @@ from networkapi.wagtailpages.pagemodels.base import BasePage
 from networkapi.wagtailpages.pagemodels.buyersguide.forms import (
     BuyersGuideArticlePageForm,
 )
-from networkapi.wagtailpages.pagemodels.buyersguide.utils import (
-    get_categories_for_locale,
-)
-from networkapi.wagtailpages.utils import get_language_from_request
 
 if typing.TYPE_CHECKING:
     from networkapi.wagtailpages.models import BuyersGuideContentCategory, Profile
@@ -63,17 +57,15 @@ class BuyersGuideArticlePage(BasePage):
             ("slider", customblocks.FoundationSliderBlock()),
             ("spacer", customblocks.BootstrapSpacerBlock()),
             ("airtable", customblocks.AirTableBlock()),
-            ("datawrapper", customblocks.DatawrapperBlock()),
-            ("typeform", customblocks.TypeformBlock()),
+            ("datawrapper", customblocks.DatawrapperContainerBlock()),
         ),
-        block_counts={"typeform": {"max_num": 1}},
         null=True,
         blank=False,
         use_json_field=True,
     )
 
     content_panels = wagtail_models.Page.content_panels + [
-        image_panels.FieldPanel("hero_image"),
+        panels.FieldPanel("hero_image"),
         panels.InlinePanel("author_profile_relations", heading="Authors", label="Author"),
         panels.InlinePanel(
             "content_category_relations",
@@ -110,12 +102,6 @@ class BuyersGuideArticlePage(BasePage):
         TranslatableField("search_description"),
         SynchronizedField("search_image"),
     ]
-
-    def get_context(self, request: http.HttpRequest, *args, **kwargs) -> dict:
-        context = super().get_context(request, *args, **kwargs)
-        language_code = get_language_from_request(request)
-        context["categories"] = get_categories_for_locale(language_code)
-        return context
 
     def get_author_profiles(self) -> list["Profile"]:
         author_profiles = orderables.get_related_items(

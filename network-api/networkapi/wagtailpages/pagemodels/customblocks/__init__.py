@@ -4,6 +4,7 @@ from .accordion_block import AccordionBlock, AccordionItem
 from .advanced_table_block import AdvancedTableBlock
 from .airtable_block import AirTableBlock
 from .annotated_image_block import AnnotatedImageBlock
+from .app_install_download_button_block import AppInstallDownloadButtonBlock
 from .article_teaser_block import ArticleTeaserBlock
 from .articles import (
     ArticleDoubleImageBlock,
@@ -23,7 +24,7 @@ from .bootstrap_spacer_block import BootstrapSpacerBlock
 from .card_grid import CardGrid, CardGridBlock
 from .cta_aside_block import CTAAsideBlock
 from .current_events_slider_block import CurrentEventsSliderBlock
-from .datawrapper_block import DatawrapperBlock
+from .datawrapper_block import DatawrapperContainerBlock, DatawrapperEmbedBlock
 from .dear_internet_letter_block import DearInternetLetterBlock
 from .foundation_slider_block import FoundationSliderBlock
 from .full_content_rich_text_options import full_content_rich_text_options
@@ -36,6 +37,7 @@ from .image_teaser_block import ImageTeaserBlock
 from .image_text_block import ImageTextBlock
 from .image_text_mini import ImageTextMini
 from .latest_profile_list import LatestProfileList
+from .link_block import LinkBlock
 from .link_button_block import LinkButtonBlock
 from .listing import ListingBlock
 from .looping_video_block import LoopingVideoBlock
@@ -49,8 +51,8 @@ from .recent_blog_entries import RecentBlogEntries
 from .session_slider_block import SessionSliderBlock
 from .single_quote_block import SingleQuoteBlock
 from .spaces_block import SpacesBlock
+from .table_block import WideTableBlock
 from .text_only_teaser import TextOnlyTeaserBlock
 from .tito_widget import TitoWidgetBlock
-from .typeform_block import TypeformBlock
 from .video_block import ExternalVideoBlock, VideoBlock, WagtailVideoChooserBlock
 from .youtube_regret_block import YoutubeRegretBlock

@@ -1,6 +1,6 @@
 #view-product-page {
   #multipage-nav-mobile,
-  #pni-nav-mobile {
+  #pni-mobile-category-nav {
     margin-bottom: 0;
   }
 
@@ -80,6 +80,16 @@
 
         @media (min-width: $pni-product-breakpoint-larger) {
           width: 66px;
+        }
+      }
+
+      @at-root html[lang="pl"] & {
+        background-image: url(../_images/buyers-guide/icon-privacy-ding-pl.svg);
+        width: 55px;
+
+        @media (min-width: $pni-product-breakpoint-larger) {
+          width: 70px;
+          height: 90px;
         }
       }
 

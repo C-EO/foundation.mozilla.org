@@ -5,10 +5,8 @@
 
 {% block stylesheets %}
     <link rel="stylesheet" href="{% static "_css/donate.compiled.css" %}">
+    <link rel="stylesheet" href="{% static "_fonts/css/base.min.css" %}">
     {% if debug %}<link rel="stylesheet" href="{% static "_css/tailwind.compiled.css" %}">{% endif %}
-
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,300,700,300i,800,900,400i">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Zilla+Slab:300,400,500,600,700,300i,400i,600i">
 {% endblock %}
 
 {% block extended_head %}{% endblock %}
@@ -30,23 +28,9 @@
 
 {% block bodyclass %} donate tw-m-0 tw-font-sans tw-font-normal tw-text-base tw-font-normal tw-text-black tw-bg-white tw-scroll-smooth {% endblock %}
 
-{% block donate_banner %}
-    {% if settings.donate_banner.SiteDonateBanner.active_donate_banner %}
-        {% include "partials/donate_banner.html" with banner=settings.donate_banner.SiteDonateBanner.active_donate_banner.localized %}
-    {% endif %}
-{% endblock %}
-
 {% block sticky_top_class %} tw-sticky tw-z-[1020] tw-top-0 {% endblock %}
 
-{% block primary_nav %}
-    {% include "partials/primary_nav.html" %}
-{% endblock %}
-
 {% block header_wrapped %}
-{% endblock %}
-
-{% block footer_block %}
-    {% include "../fragments/footer.html" %}
 {% endblock %}
 
 {% block script_bundle %}

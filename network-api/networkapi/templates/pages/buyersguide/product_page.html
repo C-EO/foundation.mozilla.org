@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block head_extra %}
-    <meta property="og:title" content="{% blocktrans context "This can be localized. This is a reference to the “*batteries not included” mention on toys." %}privacy not included - {{ product.title }}{% endblocktrans %}" />
+    <meta property="og:title" content="{% blocktrans context "This can be localized. This is a reference to the “*batteries not included” mention on toys." %}*Privacy Not Included - {{ product.title }}{% endblocktrans %}" />
 {% endblock %}
 
 {% block social_image %}
@@ -27,8 +27,6 @@
 {% block body_id %}product-page{% endblock %}
 
 {% block guts %}
-
-    {% get_bg_home_page as home_page %}
 
     <div class="text-center product-header bg-product-image{% if product.draft %} draft-product{% endif %}">
         <div class="tw-container tw-block medium:tw-grid tw-grid-cols-12 tw-gap-x-16">
@@ -51,7 +49,7 @@
 
                 {% if product.privacy_ding %}
                     <div class="privacy-ding-band tw-px-8 medium:tw-px-16 ">
-                        <p class="pni-product-smaller-body mb-0 py-2">{% blocktrans %}<strong>Warning</strong>: *privacy not included with this product{% endblocktrans %}</p>
+                        <p class="pni-product-smaller-body mb-0 py-2">{% blocktrans %}<strong>Warning</strong>: *Privacy Not Included with this product{% endblocktrans %}</p>
                     </div>
                 {% endif %}
 
@@ -101,7 +99,7 @@
                                      ">
                             {% with cta=featured_cta %}
                                 {% if cta %}
-                                    {% include "fragments/buyersguide/call_to_action_box.html" with icon=cta.sticker_image heading=cta.title body=cta.content link_text=cta.link_label link_href=cta.get_target_url %}
+                                    {% include "fragments/buyersguide/call_to_action_box.html" with icon=cta.sticker_image heading=cta.title body=cta.content link=cta.link %}
                                 {% endif %}
                             {% endwith %}
 
@@ -168,21 +166,14 @@
                 {% endif %}
             {% endwith %}
 
-            {% with related_products=product.localized_related_products %}
-                {% if related_products %}
-                    <div id="related-products" class="tw-col-span-full medium:tw-col-span-2 large:tw-col-start-2">
-                        <div class="tw-flex tw-flex-col medium:tw-items-center large:tw-items-baseline medium:tw-flex-row-reverse medium:tw-gap-12">
-                            {% include "fragments/buyersguide/wavy_line.html" %}
-                            <h2 class="tw-h3-heading tw-mt-4 large:tw-mt-0 tw-shrink-0">{% trans "Related products" %}</h2>
-                        </div>
-                        <div class="tw-grid tw-grid-cols-2 medium:tw-grid-cols-4 tw-gap-16">
-                            {% for related_product_page in related_products %}
-                                {% include "fragments/buyersguide/related_product.html" with related_product=related_product_page %}
-                            {% endfor %}
-                        </div>
-                    </div>
-                {% endif %}
-            {% endwith %}
+            {% block related_products %}
+                {% with related_products=product.localized_related_products %}
+                    {% if related_products %}
+                        {% include "fragments/buyersguide/related_products_section.html" with related_products=related_products %}
+                    {% endif %}
+                {% endwith %}
+            {% endblock related_products %}
+
         </div>
 
         {% if use_commento %}

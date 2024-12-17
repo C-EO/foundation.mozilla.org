@@ -24,24 +24,29 @@
 
 
 {% block hero_guts %}
-    {% include "./fragments/primary_heroguts.html" with root=root page=page homepage=True %}
+    {% include "./fragments/homepage_heroguts.html" with root=root page=page homepage=True %}
 {% endblock %}
 
 
 {% block content %}
     <div class="container">
-        {% include "./fragments/cause_statement.html" %}
+        {% if page.show_cause_statement %}
+            {% include "./fragments/cause_statement.html" %}
+        {% endif %}
+    </div>
+    <div class="tw-flex tw-flex-col large:tw-flex-row large:tw-gap-40 large:tw-container">
+        {% include "./fragments/hero_intro_box.html" %}
         {% include "./fragments/focus_areas.html" %}
     </div>
 
     <div class="tw-bg-gray-05">
         <div class="container">
-            {% include "./fragments/news_you_can_use.html" %}
+            {% include "./fragments/highlights.html" %}
         </div>
     </div>
 
     <div class="container">
-        {% include "./fragments/spotlight_posts.html" %}
+        {% include "./fragments/ideas_posts.html" %}
     </div>
 
     <div class="tw-bg-gray-05">
@@ -51,7 +56,7 @@
     </div>
 
     <div class="container">
-        {% include "./fragments/quote.html" %}
+        {% include "fragments/quote.html" %}
     </div>
 
     {% include "./fragments/partner.html" %}

@@ -28,7 +28,7 @@
     }
   }
 
-  .section-spotlight {
+  .section-ideas {
     .capsule-label {
       font-size: 14px;
       line-height: calc(16 / 14);
@@ -45,7 +45,7 @@
       bottom: -50%;
     }
 
-    .spotlight-banner {
+    .ideas-banner {
       background-size: cover;
       background-position: center;
       @apply tw-h-120;
@@ -55,15 +55,15 @@
       }
 
       @media (min-width: $bp-lg) {
-        height: 400px;
+        height: 100%;
       }
     }
 
-    .spotlight-headline {
+    .ideas-headline {
       font-weight: 700;
     }
 
-    .spotlight-post {
+    .ideas-post {
       $vertical-spacing: 1.5rem;
 
       &:first-child {
@@ -92,20 +92,6 @@
 
       font-family: $font-family-sans-serif;
       font-weight: bold;
-    }
-
-    .join-us .tw-btn {
-      display: block;
-      width: 100%;
-
-      @media screen and (max-width: $bp-lg) and (min-width: $bp-md) {
-        // TODO:
-        // See if we can avoid having !important by altering the existing join-us React/SCSS code.
-        // Do this after we've merged the homepage work as touching join-us code can
-        // easily affect existing sign up forms on the site.
-        display: inline;
-        width: auto !important;
-      }
     }
   }
 
@@ -188,7 +174,7 @@
       .feature-content {
         $border-thickness: 4px;
 
-        width: 50%;
+        width: 40%;
         @apply tw-p-20;
         margin: 10px 0;
         background: $white;
@@ -219,6 +205,10 @@
     .learn-more-link {
       font-size: 18px;
       font-weight: 700;
+    }
+
+    &:first-child {
+      margin-top: 1.5rem;
     }
   }
 }

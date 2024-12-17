@@ -20,7 +20,9 @@
                        tw-max-h-18 medium:tw-max-h-24
                    {% endif %}
                   "
-        />
+            {# Currently, there is no way for editors to provide a proper alt-text for this image. When an alt text becomes available we should use it here. #}
+            alt=""
+        >
     {% endif %}
 
     {% if heading %}
@@ -36,9 +38,11 @@
         </div>
     {% endif %}
 
-    {% if link_text and link_href %}
-        <div class="tw-mt-16">
-            {% include "./arrow_link.html" with link_href=link_href link_text=link_text %}
-        </div>
+    {% if link %}
+        {% with link=link.0.value %}
+            <div class="tw-mt-16">
+                {% include "./arrow_link.html" with link=link %}
+            </div>
+        {% endwith %}
     {% endif %}
 </div>

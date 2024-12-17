@@ -14,9 +14,10 @@ const PARENT_TITLE = document.querySelector(`.parent-title`);
 
 export class Utils {
   /**
-   *...
-   * @param {*} category
-   * @returns
+   * Return the title of the page based on the category passed in the argument
+   *
+   * @param {String} category name of the category
+   * @returns {String} title of the page
    */
   static getTitle(category) {
     if (category == "None")
@@ -29,39 +30,46 @@ export class Utils {
   }
 
   /**
-   * ...
-   * @param {*} category
-   * @param {*} parent
+   * Update page header to the category passed in the argument
+   *
+   * @param {String} category name of the category
+   * @param {String} parent name of the parent category
    */
   static updateHeader(category, parent) {
-    const headerText = document.querySelector(".category-header");
+    const datasetName =
+      parent || (category === "None" ? ALL_CATEGORY_LABEL : category);
+    const headerText =
+      category === "None" ? ALL_CATEGORY_LABEL : parent || category;
 
-    if (parent) {
-      document.querySelector(".category-header").dataset.name = parent;
-      headerText.textContent = parent;
-      if (document.querySelector(`#multipage-nav a[data-name="${parent}"]`)) {
-        document.querySelector(".category-header").href =
-          document.querySelector(
-            `#multipage-nav a[data-name="${parent}"]`
-          ).href;
-      }
-      document.querySelector(`#pni-nav-mobile .active-link-label`).textContent =
-        parent;
-    } else {
-      const header = category === "None" ? ALL_CATEGORY_LABEL : category;
-      headerText.textContent = header;
-      document.querySelector(".category-header").dataset.name = category;
-      if (document.querySelector(`#multipage-nav a[data-name="${category}"]`)) {
-        document.querySelector(".category-header").href =
-          document.querySelector(
-            `#multipage-nav a[data-name="${category}"]`
-          ).href;
-      }
-      document.querySelector(`#pni-nav-mobile .active-link-label`).textContent =
-        category === "None"
-          ? document.querySelector(`#multipage-nav a[data-name="None"]`)
-              .textContent
-          : category;
+    this.setCategoryHeader(datasetName, headerText);
+  }
+
+  /**
+   * Set category header text in the DOM
+   *
+   * @param {String} datasetName The name to set in the header's data attribute
+   * @param {String} headerText The text content to show as the category header
+   */
+  static setCategoryHeader(datasetName, headerText) {
+    const categoryHeader = document.querySelector(".category-header");
+    const navLink = document.querySelector(
+      `#multipage-nav a[data-name="${headerText}"]`
+    );
+    const mobileActiveLink = document.querySelector(
+      `#pni-mobile-category-nav .active-link-label`
+    );
+
+    if (!categoryHeader) return;
+
+    categoryHeader.dataset.name = datasetName;
+    categoryHeader.textContent = headerText;
+
+    if (navLink) {
+      categoryHeader.href = navLink.href;
+    }
+
+    if (mobileActiveLink) {
+      mobileActiveLink.textContent = datasetName;
     }
   }
 
@@ -70,7 +78,9 @@ export class Utils {
    */
   static deactivateActiveCatNav() {
     const linkForLarge = document.querySelector(`#multipage-nav a.active`);
-    const linkForMobile = document.querySelector(`#pni-nav-mobile a.active`);
+    const linkForMobile = document.querySelector(
+      `#pni-mobile-category-nav a.active`
+    );
 
     // for larger screens
     if (linkForLarge) {
@@ -85,6 +95,7 @@ export class Utils {
 
   /**
    * Activate a specific category nav link
+   *
    * @param {String} category category name
    */
   static activateCatNav(category = "None") {
@@ -92,7 +103,7 @@ export class Utils {
       `#multipage-nav a[data-name="${category}"]`
     );
     const linkForMobile = document.querySelector(
-      `#pni-nav-mobile a[data-name="${category}"]`
+      `#pni-mobile-category-nav a[data-name="${category}"]`
     );
 
     // for larger screens
@@ -108,6 +119,7 @@ export class Utils {
 
   /**
    * Set active category nav link
+   *
    * @param {String} category name of the category
    */
   static setActiveCatNavLink(category) {
@@ -123,13 +135,14 @@ export class Utils {
   }
 
   /**
-   * ...
-   * @param {*} text
+   * Toggle products' visibility based on search text
+   *
+   * @param {String} text search text
    */
-  static toggleProducts(text) {
+  static filterProductsBySearchText(text) {
     gsap.set(ALL_PRODUCTS, { opacity: 1, y: 0 });
     ALL_PRODUCTS.forEach((product) => {
-      if (this.test(product, text)) {
+      if (this.productContainsSearchText(product, text)) {
         product.classList.remove(`d-none`);
         product.classList.add(`d-flex`);
       } else {
@@ -142,7 +155,7 @@ export class Utils {
   }
 
   /**
-   * Scroll Animation used solely for the 'All Products' section
+   * Scroll animation used solely for the 'All Products' section
    */
   static toggleScrollAnimation() {
     gsap.set("figure.product-box.d-flex", { opacity: 0, y: 100 });
@@ -199,10 +212,11 @@ export class Utils {
   }
 
   /**
-   * ...
-   * @param {*} category
+   * Toggle products' visibility based on category
+   *
+   * @param {String} category category name
    */
-  static showProductsForCategory(category) {
+  static filterProductsByCategory(category) {
     gsap.set(ALL_PRODUCTS, { opacity: 1, y: 0 });
     ALL_PRODUCTS.forEach((product) => {
       if (this.testCategories(product, category)) {
@@ -217,8 +231,9 @@ export class Utils {
   }
 
   /**
-   * ...
-   * @param {*} category
+   * Toggle CTA visibility based on category
+   *
+   * @param {String} category category name
    */
   static toggleCtaForCategory(category) {
     const categoryPageCta = document.getElementById("category-featured-cta");
@@ -234,12 +249,13 @@ export class Utils {
   }
 
   /**
-   * ...
-   * @param {*} product
-   * @param {*} text
-   * @returns
+   * Test if any of the product fields contains the search text
+   *
+   * @param {Element} product DOM element of the product
+   * @param {String} text search text
+   * @returns {Boolean} Whether the product contains the search text
    */
-  static test(product, text) {
+  static productContainsSearchText(product, text) {
     // Note that the following is absolutely not true for all
     // languages, but it's true for the ones we use.
     text = text.toLowerCase();
@@ -258,16 +274,18 @@ export class Utils {
   }
 
   /**
-   * ...
-   * @param {*} product
-   * @param {*} category
-   * @returns
+   * Check if the product belongs to the category
+   *
+   * @param {Element} product DOM element of the product
+   * @param {String} category category name
+   * @returns {Boolean} Whether the product belongs to the category
    */
   static testCategories(product, category) {
     if (category === "None") {
       return true;
     }
 
+    // all the categories this product belongs to
     const productCategories = Array.from(
       product.querySelectorAll(".product-categories")
     );
@@ -276,7 +294,7 @@ export class Utils {
   }
 
   /**
-   * ...
+   * Sort the products by the default sort order
    */
   static sortFilteredProducts() {
     const container = document.querySelector(`.product-box-list`);
@@ -301,8 +319,8 @@ export class Utils {
           return propertyNameA < propertyNameB
             ? -1
             : propertyNameA > propertyNameB
-            ? 1
-            : 0;
+              ? 1
+              : 0;
         }
       }
     });
@@ -311,9 +329,10 @@ export class Utils {
   }
 
   /**
-   *
+   * Toggle the visibility of "no results" notice
+   * based on the number of products displayed
    */
-  static checkForEmptyNotice() {
+  static toggleNoResultsNotice() {
     let qs = `figure.product-box:not(.d-none)`;
 
     if (document.body.classList.contains(`show-ding-only`)) {
@@ -331,7 +350,10 @@ export class Utils {
     }
   }
 
-  static moveCreepyFace() {
+  /**
+   * Toggle the visibility of the creepy face and speech bubble
+   */
+  static toggleCreepyFace() {
     const CREEPINESS_FACE = document.querySelector(
       ".creep-o-meter-information"
     );
@@ -378,6 +400,7 @@ export class Utils {
 
   /**
    * Scroll to a specific subcategory nav link if it exists on the page
+   *
    * @param {string} category - The name of the category
    */
   static scrollToSubCategory(category) {

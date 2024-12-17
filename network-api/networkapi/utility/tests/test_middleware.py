@@ -2,22 +2,7 @@ from unittest.mock import MagicMock
 
 from django.test import TestCase
 
-from networkapi.utility.middleware import ReferrerMiddleware, XRobotsTagMiddleware
-
-
-class ReferrerMiddlewareTests(TestCase):
-    def setUp(self):
-        referrer_middleware = ReferrerMiddleware("response")
-        self.assertEqual(referrer_middleware.get_response, "response")
-
-    def test_requestProcessing(self):
-        """
-        Ensure that the middleware assigns a Referrer-Policy header to the response object
-        """
-
-        referrer_middleware = ReferrerMiddleware(MagicMock())
-        response = referrer_middleware(MagicMock())
-        response.__setitem__.assert_called_with("Referrer-Policy", "same-origin")
+from networkapi.utility.middleware import XRobotsTagMiddleware
 
 
 class XRobotsTagMiddlewareTest(TestCase):
@@ -33,3 +18,21 @@ class XRobotsTagMiddlewareTest(TestCase):
         xrobotstag_middleware = XRobotsTagMiddleware(MagicMock())
         response = xrobotstag_middleware(MagicMock())
         response.__setitem__.assert_called_with("X-Robots-Tag", "noindex")
+
+
+class NormalizeLocaleMiddlewareTest(TestCase):
+    def test_redirect_with_pt_br_language(self):
+        # Simulate a request to a URL with 'pt-br' in the path
+        response = self.client.get("/pt-br/?form=donate-header")
+
+        # Assert that the middleware issues a redirect to the normalized URL
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/pt-BR/?form=donate-header")
+
+    def test_redirect_with_fy_NL_language(self):
+        # Simulate a request to a URL with 'fy-nl' in the path
+        response = self.client.get("/fy-nl/?form=donate-header")
+
+        # Assert that the middleware issues a redirect to the normalized URL
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/fy-NL/?form=donate-header")

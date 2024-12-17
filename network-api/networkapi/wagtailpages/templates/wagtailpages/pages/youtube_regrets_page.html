@@ -4,7 +4,7 @@
 {% block body_id %}youtube-regrets{% endblock %}
 
 {% block extended_head %}
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Changa" rel="stylesheet">
+    <link rel="stylesheet" href="{% static "_fonts/css/changa.min.css" %}">
 {% endblock %}
 
 {% block intro_stationary_wrapper %}
@@ -17,7 +17,7 @@
     <div class="container">
         <div class="row d-md-none my-3">
             <div class="col-12">
-                {% include "../fragments/share-buttons.html" with page=page version="mini" share_text=share_text %}
+                {% include "fragments/share-buttons.html" with page=page version="mini" share_text=share_text %}
             </div>
         </div>
 
@@ -32,7 +32,7 @@
         <div class="row">
             <div class="offset-md-1 col-md-1 text-center pb-md-5 d-none d-md-block">
                 <div class="sticky-side">
-                    {% include "../fragments/share-buttons.html" with page=page version="mini" layout="stacked" share_text=share_text %}
+                    {% include "fragments/share-buttons.html" with page=page version="mini" layout="stacked" share_text=share_text %}
                 </div>
             </div>
 
@@ -54,5 +54,5 @@
 {% endblock %}
 
 {% block footer_block %}
-    {% include "partials/footer.html" %}
+    {% include "fragments/footer.html" %}
 {% endblock %}

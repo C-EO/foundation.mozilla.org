@@ -4,24 +4,96 @@ from modelcluster.fields import ParentalKey
 from wagtail.admin.panels import FieldPanel, InlinePanel, MultiFieldPanel
 from wagtail.fields import RichTextField, StreamField
 from wagtail.images import get_image_model_string
+from wagtail.models import Locale
 from wagtail.models import Orderable as WagtailOrderable
 from wagtail.models import Page, TranslatableMixin
-from wagtail.snippets.models import register_snippet
+from wagtail.search import index
+from wagtail_ab_testing.models import AbTest
 from wagtail_localize.fields import SynchronizedField, TranslatableField
+
+from networkapi.donate_banner.models import DonateBannerPage
+from networkapi.wagtailpages.pagemodels.customblocks.link_block import LinkBlock
 
 # TODO:  https://github.com/mozilla/foundation.mozilla.org/issues/2362
 from ..donation_modal import DonationModals  # noqa: F401
-from ..utils import TitleWidget, get_page_tree_information
+from ..utils import CharCountWidget, get_page_tree_information
 from .customblocks.base_fields import base_fields
 from .customblocks.base_rich_text_options import base_rich_text_options
 from .mixin.foundation_banner_inheritance import FoundationBannerInheritanceMixin
 from .mixin.foundation_metadata import FoundationMetadataPageMixin
 from .mixin.foundation_navigation import FoundationNavigationPageMixin
 
+hero_intro_heading_default_text = "A healthy internet is one in which privacy, openness, and inclusion are the norms."
+hero_intro_body_default_text = (
+    "Mozilla empowers consumers to demand better online privacy, trustworthy AI, "
+    "and safe online experiences from Big Tech and governments. We work across "
+    "borders, disciplines, and technologies to uphold principles like privacy, "
+    "inclusion and decentralization online."
+)
+
 
 class BasePage(FoundationMetadataPageMixin, FoundationNavigationPageMixin, Page):
     class Meta:
         abstract = True
+
+    def get_donate_banner(self, request):
+        # Check if there's a DonateBannerPage.
+        default_locale = Locale.get_default()
+        donate_banner_page = DonateBannerPage.objects.filter(locale=default_locale).first()
+
+        # If there is no DonateBannerPage or no donate_banner is set, return None.
+        if not donate_banner_page or not donate_banner_page.donate_banner:
+            return None
+
+        # Check if the user has Do Not Track enabled by inspecting the DNT header.
+        dnt_enabled = request.headers.get("DNT") == "1"
+
+        # Check if there's an active A/B test for the DonateBannerPage.
+        active_ab_test = AbTest.objects.filter(page=donate_banner_page, status=AbTest.STATUS_RUNNING).first()
+
+        # If there's no A/B test found or DNT is enabled, return the page's donate_banner field as usual.
+        if not active_ab_test or dnt_enabled:
+            donate_banner = donate_banner_page.donate_banner.localized
+            donate_banner.variant_version = "N/A"
+            donate_banner.active_ab_test = "N/A"
+            return donate_banner
+
+        # Check for the cookie related to this A/B test.
+        # In wagtail-ab-testing, the cookie name follows the format:
+        # "wagtail-ab-testing_{ab_test.id}_version".
+        # For details, see the source code here:
+        # https://github.com/wagtail-nest/wagtail-ab-testing/blob/main/wagtail_ab_testing/wagtail_hooks.py#L196-L197
+        test_cookie_name = f"wagtail-ab-testing_{active_ab_test.id}_version"
+        test_version = request.COOKIES.get(test_cookie_name)
+
+        # If no version cookie is found, grab a test version for the current user.
+        if not test_version:
+            test_version = active_ab_test.get_new_participant_version()
+
+        if test_version == "variant":
+            is_variant = True
+        else:
+            is_variant = False
+
+        # Attach active test and variant flag to request for {% wagtail_ab_testing_script %} template tag.
+        # This allows wagtail-ab-testing to track events for this test, and set the version cookie if needed.
+        request.wagtail_ab_testing_test = active_ab_test
+        request.wagtail_ab_testing_serving_variant = is_variant
+
+        # Return the appropriate donate banner
+        if is_variant:
+            donate_banner = active_ab_test.variant_revision.as_object().donate_banner.localized
+        else:
+            donate_banner = donate_banner_page.donate_banner.localized
+
+        donate_banner.variant_version = test_version
+        donate_banner.active_ab_test = active_ab_test.name
+        return donate_banner
+
+    def get_context(self, request):
+        context = super().get_context(request)
+        context["donate_banner"] = self.get_donate_banner(request)
+        return context
 
 
 class PrimaryPage(FoundationBannerInheritanceMixin, BasePage):  # type: ignore
@@ -61,23 +133,12 @@ class PrimaryPage(FoundationBannerInheritanceMixin, BasePage):  # type: ignore
         help_text="For text-heavy pages, turn this on to reduce the overall width of the content on the page.",
     )
 
-    zen_nav = models.BooleanField(
-        default=False,
-        help_text="For secondary nav pages, use this to collapse the primary nav under a toggle hamburger.",
-    )
-
     body = StreamField(base_fields, use_json_field=True)
 
     settings_panels = Page.settings_panels + [
         MultiFieldPanel(
             [
                 FieldPanel("narrowed_page_content"),
-            ],
-            classname="collapsible",
-        ),
-        MultiFieldPanel(
-            [
-                FieldPanel("zen_nav"),
             ],
             classname="collapsible",
         ),
@@ -104,7 +165,6 @@ class PrimaryPage(FoundationBannerInheritanceMixin, BasePage):  # type: ignore
         TranslatableField("intro"),
         TranslatableField("body"),
         SynchronizedField("narrowed_page_content"),
-        SynchronizedField("zen_nav"),
     ]
 
     subpage_types = [
@@ -432,11 +492,11 @@ class ParticipatePage2(PrimaryPage):
 
     @property
     def ordered_featured_highlights(self):
-        return ParticipateHighlights.objects.filter(page=self).select_related("highlight").order_by("sort_order")
+        return self.featured_highlights.select_related("highlight").order_by("sort_order")
 
     @property
     def ordered_featured_highlights2(self):
-        return ParticipateHighlights2.objects.filter(page=self).select_related("highlight").order_by("sort_order")
+        return self.featured_highlights2.select_related("highlight").order_by("sort_order")
 
 
 class Styleguide(PrimaryPage):
@@ -455,39 +515,39 @@ class Styleguide(PrimaryPage):
     ]
 
 
-class HomepageSpotlightPosts(TranslatableMixin, WagtailOrderable):
+class HomepageIdeasPosts(TranslatableMixin, WagtailOrderable):
     page = ParentalKey(
         "wagtailpages.Homepage",
-        related_name="spotlight_posts",
+        related_name="ideas_posts",
     )
     blog = models.ForeignKey("BlogPage", on_delete=models.CASCADE, related_name="+")
+    cta = models.CharField(max_length=50, default="Read more")
     panels = [
         FieldPanel("blog"),
+        FieldPanel("cta", heading="CTA Link Text"),
     ]
 
-    class Meta(TranslatableMixin.Meta):
+    class Meta(TranslatableMixin.Meta, WagtailOrderable.Meta):
         verbose_name = "blog"
         verbose_name_plural = "blogs"
-        ordering = ["sort_order"]  # not automatically inherited!
 
     def __str__(self):
         return self.page.title + "->" + self.blog.title
 
 
-class HomepageNewsYouCanUse(TranslatableMixin, WagtailOrderable):
+class HomepageHighlights(TranslatableMixin, WagtailOrderable):
     page = ParentalKey(
         "wagtailpages.Homepage",
-        related_name="news_you_can_use",
+        related_name="highlights",
     )
     blog = models.ForeignKey("BlogPage", on_delete=models.CASCADE, related_name="+")
     panels = [
         FieldPanel("blog"),
     ]
 
-    class Meta(TranslatableMixin.Meta):
+    class Meta(TranslatableMixin.Meta, WagtailOrderable.Meta):
         verbose_name = "blog"
         verbose_name_plural = "blogs"
-        ordering = ["sort_order"]  # not automatically inherited!
 
     def __str__(self):
         return self.page.title + "->" + self.blog.title
@@ -503,10 +563,9 @@ class InitiativesHighlights(TranslatableMixin, WagtailOrderable, models.Model):
         FieldPanel("highlight"),
     ]
 
-    class Meta(TranslatableMixin.Meta):
+    class Meta(TranslatableMixin.Meta, WagtailOrderable.Meta):
         verbose_name = "highlight"
         verbose_name_plural = "highlights"
-        ordering = ["sort_order"]  # not automatically inherited!
 
     def __str__(self):
         return self.page.title + "->" + self.highlight.title
@@ -550,11 +609,10 @@ class CTABase(WagtailOrderable, models.Model):
         FieldPanel("buttonURL"),
     ]
 
-    class Meta(TranslatableMixin.Meta):
+    class Meta(WagtailOrderable.Meta):
         abstract = True
         verbose_name = "cta"
         verbose_name_plural = "ctas"
-        ordering = ["sort_order"]  # not automatically inherited!
 
     def __str__(self):
         return self.page.title + "->" + self.highlight.title
@@ -565,9 +623,6 @@ class CTA4(TranslatableMixin, CTABase):
         "wagtailpages.ParticipatePage2",
         related_name="cta4",
     )
-
-    class Meta(TranslatableMixin.Meta):
-        pass
 
 
 class ParticipateHighlightsBase(TranslatableMixin, WagtailOrderable, models.Model):
@@ -580,11 +635,10 @@ class ParticipateHighlightsBase(TranslatableMixin, WagtailOrderable, models.Mode
         FieldPanel("highlight"),
     ]
 
-    class Meta:
+    class Meta(TranslatableMixin.Meta, WagtailOrderable.Meta):
         abstract = True
         verbose_name = "highlight"
         verbose_name_plural = "highlights"
-        ordering = ["sort_order"]  # not automatically inherited!
 
     def __str__(self):
         return self.page.title + "->" + self.highlight.title
@@ -596,9 +650,6 @@ class ParticipateHighlights(ParticipateHighlightsBase):
         related_name="featured_highlights",
     )
 
-    class Meta(TranslatableMixin.Meta):
-        pass
-
 
 class ParticipateHighlights2(ParticipateHighlightsBase):
     page = ParentalKey(
@@ -606,11 +657,7 @@ class ParticipateHighlights2(ParticipateHighlightsBase):
         related_name="featured_highlights2",
     )
 
-    class Meta(TranslatableMixin.Meta):
-        pass
 
-
-@register_snippet
 class FocusArea(TranslatableMixin, models.Model):
     interest_icon = models.ForeignKey(
         "wagtailimages.Image",
@@ -629,25 +676,21 @@ class FocusArea(TranslatableMixin, models.Model):
         help_text="Description of this area of focus. Max. 300 characters.",
     )
 
-    page = models.ForeignKey(
-        "wagtailcore.Page",
-        blank=True,
-        null=True,
-        on_delete=models.SET_NULL,
-        related_name="+",
-    )
-
     panels = [
         FieldPanel("interest_icon"),
         FieldPanel("name"),
         FieldPanel("description"),
-        FieldPanel("page"),
     ]
 
     translatable_fields = [
         SynchronizedField("interest_icon"),
         TranslatableField("name"),
         TranslatableField("description"),
+    ]
+
+    search_fields = [
+        index.SearchField("name"),
+        index.FilterField("locale_id"),
     ]
 
     def __str__(self):
@@ -671,7 +714,7 @@ class HomepageFocusAreas(TranslatableMixin, WagtailOrderable):
         FieldPanel("area"),
     ]
 
-    class Meta(TranslatableMixin.Meta):
+    class Meta(TranslatableMixin.Meta, WagtailOrderable.Meta):
         verbose_name = "Homepage Focus Area"
 
 
@@ -693,11 +736,13 @@ class HomepageTakeActionCards(TranslatableMixin, WagtailOrderable):
         null=True,
         on_delete=models.SET_NULL,
     )
+    cta = models.CharField(max_length=50, default="Learn more")
 
     panels = [
         FieldPanel("image"),
         FieldPanel("text"),
         FieldPanel("internal_link"),
+        FieldPanel("cta", heading="CTA Link Text"),
     ]
 
     # translatable_fields = [
@@ -709,9 +754,8 @@ class HomepageTakeActionCards(TranslatableMixin, WagtailOrderable):
     def __str__(self):
         return self.name
 
-    class Meta(TranslatableMixin.Meta):
+    class Meta(TranslatableMixin.Meta, WagtailOrderable.Meta):
         verbose_name = "Take Action Card"
-        ordering = ["sort_order"]  # not automatically inherited!
 
 
 class PartnerLogos(TranslatableMixin, WagtailOrderable):
@@ -755,14 +799,14 @@ class PartnerLogos(TranslatableMixin, WagtailOrderable):
         width = self.width * 2
         return self.logo.get_rendition(f"width-{width}")
 
-    class Meta(TranslatableMixin.Meta):
+    class Meta(TranslatableMixin.Meta, WagtailOrderable.Meta):
         verbose_name = "Partner Logo"
-        ordering = ["sort_order"]  # not automatically inherited!
 
 
 class Homepage(FoundationMetadataPageMixin, Page):
+
     hero_headline = models.CharField(
-        max_length=80,
+        max_length=120,
         help_text="Hero story headline",
         blank=True,
     )
@@ -778,23 +822,37 @@ class Homepage(FoundationMetadataPageMixin, Page):
     def get_banner(self):
         return self.hero_image
 
+    show_hero_button = models.BooleanField(default=True, help_text="Display hero button")
+
     hero_button_text = models.CharField(max_length=50, blank=True)
 
     hero_button_url = models.URLField(blank=True)
 
-    spotlight_image = models.ForeignKey(
+    hero_intro_heading = models.CharField(max_length=100, blank=True, default=hero_intro_heading_default_text)
+    hero_intro_body = models.TextField(max_length=300, blank=True, default=hero_intro_body_default_text)
+    hero_intro_link = StreamField(
+        [("link", LinkBlock())],
+        use_json_field=True,
+        blank=True,
+        max_num=1,
+    )
+
+    ideas_title = models.CharField(default="Ideas", max_length=50)
+
+    ideas_image = models.ForeignKey(
         "wagtailimages.Image",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name="spotlight_image",
+        related_name="ideas_image",
     )
 
-    spotlight_headline = models.CharField(
+    ideas_headline = models.CharField(
         max_length=140,
-        help_text="Spotlight headline",
         blank=True,
     )
+
+    show_cause_statement = models.BooleanField(default=False, help_text="Display cause statement")
 
     cause_statement = models.CharField(
         max_length=250,
@@ -854,6 +912,9 @@ class Homepage(FoundationMetadataPageMixin, Page):
         null=True,
         on_delete=models.SET_NULL,
     )
+
+    highlights_title = models.CharField(default="The Highlights", max_length=50)
+
     # Take Action Section
     take_action_title = models.CharField(default="Take action", max_length=50)
 
@@ -862,8 +923,9 @@ class Homepage(FoundationMetadataPageMixin, Page):
             [
                 FieldPanel(
                     "hero_headline",
-                    widget=TitleWidget(attrs={"class": "max-length-warning", "data-max-length": 60}),
+                    widget=CharCountWidget(attrs={"class": "max-length-warning", "data-max-length": 120}),
                 ),
+                FieldPanel("show_hero_button"),
                 FieldPanel("hero_button_text"),
                 FieldPanel("hero_button_url"),
                 FieldPanel("hero_image"),
@@ -873,12 +935,22 @@ class Homepage(FoundationMetadataPageMixin, Page):
         ),
         MultiFieldPanel(
             [
+                FieldPanel("show_cause_statement"),
                 FieldPanel("cause_statement"),
                 FieldPanel("cause_statement_link_text"),
                 FieldPanel("cause_statement_link_page"),
             ],
             heading="cause statement",
             classname="collapsible collapsed",
+        ),
+        MultiFieldPanel(
+            [
+                FieldPanel("hero_intro_heading"),
+                FieldPanel("hero_intro_body"),
+                FieldPanel("hero_intro_link"),
+            ],
+            heading="Hero Intro Box",
+            classname="collapsible",
         ),
         MultiFieldPanel(
             [
@@ -889,18 +961,20 @@ class Homepage(FoundationMetadataPageMixin, Page):
         ),
         MultiFieldPanel(
             [
-                InlinePanel("news_you_can_use", min_num=4, max_num=4),
+                FieldPanel("highlights_title"),
+                InlinePanel("highlights", min_num=4, max_num=4),
             ],
-            heading="News you can use",
+            heading="The Highlights",
             classname="collapsible",
         ),
         MultiFieldPanel(
             [
-                FieldPanel("spotlight_image"),
-                FieldPanel("spotlight_headline"),
-                InlinePanel("spotlight_posts", label="Posts", min_num=3, max_num=3),
+                FieldPanel("ideas_title"),
+                FieldPanel("ideas_image"),
+                FieldPanel("ideas_headline"),
+                InlinePanel("ideas_posts", label="Posts", min_num=3, max_num=3),
             ],
-            heading="spotlight",
+            heading="Ideas",
             classname="collapsible",
         ),
         MultiFieldPanel(
@@ -948,8 +1022,13 @@ class Homepage(FoundationMetadataPageMixin, Page):
         SynchronizedField("hero_image"),
         TranslatableField("hero_button_text"),
         SynchronizedField("hero_button_url"),
-        SynchronizedField("spotlight_image"),
-        TranslatableField("spotlight_headline"),
+        TranslatableField("hero_intro_heading"),
+        TranslatableField("hero_intro_body"),
+        TranslatableField("hero_intro_link"),
+        TranslatableField("ideas_title"),
+        SynchronizedField("ideas_image"),
+        TranslatableField("ideas_headline"),
+        SynchronizedField("show_cause_statement"),
         TranslatableField("cause_statement"),
         TranslatableField("cause_statement_link_text"),
         TranslatableField("cause_statement_link_page"),
@@ -966,11 +1045,13 @@ class Homepage(FoundationMetadataPageMixin, Page):
         TranslatableField("focus_areas"),
         TranslatableField("take_action_cards"),
         TranslatableField("partner_logos"),
-        TranslatableField("spotlight_posts"),
-        TranslatableField("news_you_can_use"),
+        TranslatableField("ideas_posts"),
+        TranslatableField("highlights"),
+        TranslatableField("highlights_title"),
     ]
 
     subpage_types = [
+        "AppInstallPage",
         "BanneredCampaignPage",
         "BlogIndexPage",
         "CampaignIndexPage",
@@ -987,7 +1068,16 @@ class Homepage(FoundationMetadataPageMixin, Page):
         "BuyersGuidePage",
         "ArticlePage",
         "donate.DonateLandingPage",
+        "donate_banner.DonateBannerPage",
     ]
+
+    def get_localized_take_action_cards(self):
+        # Loop through take_action_cards and localize internal_link
+        localized_cards = []
+        for card in self.take_action_cards.all():
+            card.internal_link = card.internal_link.localized
+            localized_cards.append(card)
+        return localized_cards
 
     def get_context(self, request):
         # We need to expose MEDIA_URL so that the s3 images will show up properly
@@ -996,4 +1086,8 @@ class Homepage(FoundationMetadataPageMixin, Page):
         context["MEDIA_URL"] = settings.MEDIA_URL
         context["menu_root"] = self
         context["menu_items"] = self.get_children().live().in_menu()
+        context["donate_banner"] = BasePage.get_donate_banner(self, request)
+        context["localized_take_action_cards"] = self.get_localized_take_action_cards()
+        if self.partner_page:
+            context["localized_partner_page"] = self.partner_page.localized
         return context

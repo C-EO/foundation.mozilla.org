@@ -2,10 +2,11 @@ from functools import cached_property
 
 from django.db import models
 from modelcluster import fields as cluster_fields
-from wagtail.admin import panels as edit_handlers
+from wagtail.admin import panels as wagtail_panels
 from wagtail.search import index
 from wagtail_localize import fields as localize_fields
 
+from networkapi.utility import orderables
 from networkapi.wagtailpages import utils as wagtailpages_utils
 from networkapi.wagtailpages.pagemodels import profiles
 from networkapi.wagtailpages.pagemodels.libraries import detail_page as base_detail_page
@@ -18,9 +19,9 @@ class RCCDetailPage(base_detail_page.LibraryDetailPage):
     template = "pages/libraries/rcc/detail_page.html"
 
     content_panels = base_detail_page.LibraryDetailPage.content_panels + [
-        edit_handlers.InlinePanel("related_content_types", heading="Content types"),
-        edit_handlers.InlinePanel("related_curricular_areas", heading="Curricular areas"),
-        edit_handlers.InlinePanel("related_topics", heading="Topics"),
+        wagtail_panels.InlinePanel("related_content_types", heading="Content types"),
+        wagtail_panels.InlinePanel("related_curricular_areas", heading="Curricular areas"),
+        wagtail_panels.InlinePanel("related_topics", heading="Topics"),
     ]
 
     translatable_fields = base_detail_page.LibraryDetailPage.translatable_fields + [
@@ -64,12 +65,25 @@ class RCCDetailPage(base_detail_page.LibraryDetailPage):
         context["content_type_names"] = self.related_content_types_names
         return context
 
+    def get_preview_template(self, request, mode_name):
+        return "previews/libraries/rcc/detail_page.html"
+
     @cached_property
     def localized_authors(self):
-        rcc_author_profiles = wagtailpages_utils.localize_queryset(
-            profiles.Profile.objects.filter(authored_rcc_articles__detail_page=self)
+        rcc_author_profiles = profiles.Profile.objects.filter(authored_rcc_articles__detail_page=self).order_by(
+            "authored_rcc_articles__sort_order"
         )
+        rcc_author_profiles = wagtailpages_utils.localize_queryset(rcc_author_profiles, preserve_order=True)
         return rcc_author_profiles
+
+    @property
+    def preview_related_authors(self):
+        """
+        Fetches related authors for CMS page previews.
+        """
+        related_authors = orderables.get_related_items(self.authors.all(), "author_profile", order_by="sort_order")
+
+        return related_authors
 
     @cached_property
     def authors_index_page(self):

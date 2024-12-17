@@ -74,7 +74,7 @@ See also: https://docs.djangoproject.com/en/4.1/topics/i18n/formatting/#controll
 
 ### A/B testing
 
-We currently don't have any A/B testing going on. We used to use [wagtail-experiments](https://github.com/torchbox/wagtail-experiments) but we're going to switch over to [wagtail-ab-testing](https://github.com/torchbox/wagtail-ab-testing)
+The project has [wagtail-ab-testing](https://github.com/torchbox/wagtail-ab-testing) setup. Out-of-the box we only get a "Visit page" goal event type which we can use to track when users visit a goal page. [Custom goal types](https://github.com/wagtail-nest/wagtail-ab-testing#implementing-custom-goal-event-types) need to be setup to track other events such as making a donation, submitting a form, or clicking a link.
 
 ## S3
 
@@ -104,3 +104,14 @@ The templates are very scattered at the moment.
 We are trying to localize all tempaltes to the location `network-api/networkapi/templates`.
 When ever you touch or create a template, please move it to / create it in this location and place it in the appropriate sub-directory, `pages` or `fragments`.
 Create sub-directories under `pages` or `fragments` only when necessary and you have more than one template that needs to be grouped.
+
+## Fundraise Up
+
+This site uses [Fundraise Up](https://fundraiseup.com/) as a payment processor.
+
+### Enabling Test Mode
+
+Developers can enable Fundraise Up "test mode" by appending the query parameter `?fundraiseUpLiveMode=no` to the end of the current URL.
+
+With live mode disabled, you can test functionality without the need of a real credit card.
+Test card information will be given to you when completing the checkout process.

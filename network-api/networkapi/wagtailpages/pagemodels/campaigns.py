@@ -7,11 +7,12 @@ from taggit.models import TaggedItemBase
 from wagtail.admin.panels import FieldPanel, InlinePanel
 from wagtail.fields import RichTextField
 from wagtail.models import Page, TranslatableMixin
-from wagtail.snippets.models import register_snippet
+from wagtail.search import index
 from wagtail_localize.fields import SynchronizedField, TranslatableField
 
 from ..utils import get_content_related_by_tag, get_page_tree_information
 from .base import PrimaryPage
+from .customblocks.base_rich_text_options import base_rich_text_options
 from .mixin.foundation_metadata import FoundationMetadataPageMixin
 from .modular import MiniSiteNameSpace
 
@@ -31,6 +32,13 @@ class CTABase(models.Model):
 
     description = RichTextField(help_text="Body (richtext) of component", blank=True)
 
+    privacy_notice = RichTextField(
+        help_text="This optional privacy notice field will overwrite the default privacy notice text. "
+        "If this field is left blank, the default privacy notice text is used.",
+        features=base_rich_text_options,
+        blank=True,
+    )
+
     newsletter = models.CharField(
         max_length=100,
         help_text="The (pre-existing) newsletter to sign up for",
@@ -41,7 +49,21 @@ class CTABase(models.Model):
         TranslatableField("name"),
         TranslatableField("header"),
         TranslatableField("description"),
+        TranslatableField("privacy_notice"),
         SynchronizedField("newsletter"),
+    ]
+
+    panels = [
+        FieldPanel("name"),
+        FieldPanel("newsletter"),
+        FieldPanel("header"),
+        FieldPanel("description"),
+        FieldPanel("privacy_notice"),
+    ]
+
+    search_fields = [
+        index.SearchField("name", boost=10),
+        index.SearchField("newsletter"),
     ]
 
     def __str__(self):
@@ -51,14 +73,14 @@ class CTABase(models.Model):
         abstract = True
 
 
-@register_snippet
 class CTA(CTABase):
+    panels = CTABase.panels
+
     class Meta:
         ordering = ["-id"]
         verbose_name_plural = "CTA"
 
 
-@register_snippet
 class Callpower(TranslatableMixin, CTA):
     campaign_id = models.CharField(
         max_length=20,
@@ -111,12 +133,26 @@ class Callpower(TranslatableMixin, CTA):
         SynchronizedField("share_email"),
     ]
 
+    search_fields = CTA.search_fields + [
+        index.SearchField("campaign_id", boost=2),
+        index.FilterField("locale_id"),
+    ]
+
+    panels = CTA.panels + [
+        FieldPanel("campaign_id"),
+        FieldPanel("call_button_label"),
+        FieldPanel("success_heading"),
+        FieldPanel("success_text"),
+        FieldPanel("share_twitter"),
+        FieldPanel("share_facebook"),
+        FieldPanel("share_email"),
+    ]
+
     class Meta(TranslatableMixin.Meta):
         ordering = ["name"]
         verbose_name = "Callpower"
 
 
-@register_snippet
 class Signup(TranslatableMixin, CTA):
     campaign_id = models.CharField(
         max_length=20,
@@ -126,6 +162,7 @@ class Signup(TranslatableMixin, CTA):
     )
 
     ask_name = models.BooleanField(
+        verbose_name="Ask for name?",
         help_text="Check this box to show (optional) name fields",
         default=False,
     )
@@ -135,12 +172,22 @@ class Signup(TranslatableMixin, CTA):
         SynchronizedField("ask_name"),
     ]
 
+    search_fields = CTA.search_fields + [
+        index.SearchField("campaign_id", boost=2),
+        index.FilterField("locale_id"),
+        index.FilterField("ask_name"),
+    ]
+
+    panels = CTA.panels + [
+        FieldPanel("campaign_id"),
+        FieldPanel("ask_name"),
+    ]
+
     class Meta(TranslatableMixin.Meta):
         ordering = ["name"]
         verbose_name = "Signup"
 
 
-@register_snippet
 class BlogSignup(TranslatableMixin, CTABase):
     description = RichTextField(
         help_text="Signup's body (richtext)", features=["bold", "italic"], max_length=300, blank=True
@@ -180,7 +227,6 @@ class OpportunityPage(MiniSiteNameSpace):
         verbose_name_plural = "Default pages"
 
 
-@register_snippet
 class Petition(TranslatableMixin, CTA):
     campaign_id = models.CharField(
         max_length=20,
@@ -190,16 +236,19 @@ class Petition(TranslatableMixin, CTA):
 
     show_country_field = models.BooleanField(
         default=False,
+        verbose_name="Show country field?",
         help_text="This toggles the visibility of the optional country dropdown field.",
     )
 
     show_postal_code_field = models.BooleanField(
         default=False,
+        verbose_name="Show postal code field?",
         help_text="This toggles the visibility of the optional postal code field.",
     )
 
     show_comment_field = models.BooleanField(
         default=False,
+        verbose_name="Show comment field?",
         help_text="This toggles the visibility of the optional comment field.",
     )
 
@@ -272,9 +321,28 @@ class Petition(TranslatableMixin, CTA):
         TranslatableField("description"),
     ]
 
+    search_fields = CTA.search_fields + [
+        index.SearchField("campaign_id", boost=2),
+        index.FilterField("locale_id"),
+        index.FilterField("show_country_field"),
+        index.FilterField("show_postal_code_field"),
+        index.FilterField("show_comment_field"),
+    ]
+
+    panels = CTA.panels + [
+        FieldPanel("campaign_id"),
+        FieldPanel("show_country_field"),
+        FieldPanel("show_postal_code_field"),
+        FieldPanel("show_comment_field"),
+        FieldPanel("share_twitter"),
+        FieldPanel("share_facebook"),
+        FieldPanel("share_email"),
+        FieldPanel("thank_you"),
+    ]
+
     class Meta(TranslatableMixin.Meta):
         ordering = ["-id"]
-        verbose_name = "petition snippet"
+        verbose_name = "Petition"
 
 
 class CampaignPage(MiniSiteNameSpace):
@@ -320,7 +388,6 @@ class CampaignPage(MiniSiteNameSpace):
         TranslatableField("title"),
         TranslatableField("header"),
         SynchronizedField("narrowed_page_content"),
-        SynchronizedField("zen_nav"),
         TranslatableField("body"),
         TranslatableField("donation_modals"),
     ]
@@ -397,18 +464,17 @@ class BanneredCampaignPage(PrimaryPage):
         TranslatableField("title"),
         SynchronizedField("banner"),
         SynchronizedField("narrowed_page_content"),
-        SynchronizedField("zen_nav"),
         # FIXME: Contingency fix while https://github.com/mozilla/foundation.mozilla.org/pull/7771 is sorted out
         # TranslatableField("cta"),
         TranslatableField("signup"),
     ]
 
     subpage_types = [
+        "AppInstallPage",
         "BanneredCampaignPage",
         "PublicationPage",
         "OpportunityPage",
         "ArticlePage",
-        "YoutubeRegretsReporterExtensionPage",
         "YoutubeRegrets2021Page",
         "YoutubeRegrets2022Page",
         "YoutubeRegretsPage",

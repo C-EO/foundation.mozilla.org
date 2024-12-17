@@ -2,14 +2,14 @@ from django.core.validators import RegexValidator
 from django.db import models
 from modelcluster.fields import ParentalKey
 from wagtail.admin.panels import FieldPanel
+from wagtail.fields import RichTextField
 from wagtail.models import TranslatableMixin
-from wagtail.snippets.models import register_snippet
+from wagtail.search import index
 from wagtail_localize.fields import SynchronizedField, TranslatableField
 
 from networkapi.wagtailpages.constants import url_or_query_regex
 
 
-@register_snippet
 class DonationModal(TranslatableMixin, models.Model):
     name = models.CharField(
         default="",
@@ -23,7 +23,28 @@ class DonationModal(TranslatableMixin, models.Model):
         default="Thanks for signing! While you're here, we need your help.",
     )
 
-    body = models.TextField(
+    body = RichTextField(
+        features=[
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "bold",
+            "italic",
+            "ol",
+            "ul",
+            "hr",
+            "link",
+            "document-link",
+            "image",
+            "embed",
+            "code",
+            "superscript",
+            "subscript",
+            "strikethrough",
+            "blockquote",
+        ],
         help_text="Donation text",
         default="Mozilla is a nonprofit organization fighting for "
         "a healthy internet, where privacy is included by "
@@ -69,6 +90,12 @@ class DonationModal(TranslatableMixin, models.Model):
         TranslatableField("donate_text"),
         SynchronizedField("donate_url"),
         TranslatableField("dismiss_text"),
+    ]
+
+    search_fields = [
+        index.SearchField("name", boost=10),
+        index.SearchField("donate_text"),
+        index.FilterField("locale_id"),
     ]
 
     def to_simple_dict(self):

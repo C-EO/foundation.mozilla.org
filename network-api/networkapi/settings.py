@@ -6,6 +6,7 @@ Gnerated by 'django-admin startproject' using Django 1.10.3.
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.10/ref/settings/
 """
+
 import logging.config
 import os
 import sys
@@ -36,6 +37,7 @@ env = environ.Env(
     CORS_ALLOWED_ORIGIN_REGEXES=(tuple, ()),
     CORS_ALLOWED_ORIGINS=(tuple, ()),
     CSP_INCLUDE_NONCE_IN=(list, []),
+    CSRF_TRUSTED_ORIGINS=(list, []),
     DATA_UPLOAD_MAX_NUMBER_FIELDS=(int, 2500),
     DATABASE_URL=(str, None),
     DEBUG=(bool, False),
@@ -44,8 +46,6 @@ env = environ.Env(
     FEED_CACHE_TIMEOUT=(int, 60 * 60 * 24),
     DOMAIN_REDIRECT_MIDDLEWARE_ENABLED=(bool, False),
     FEED_LIMIT=(int, 10),
-    FILEBROWSER_DEBUG=(bool, False),
-    FILEBROWSER_DIRECTORY=(str, ""),
     FORCE_500_STACK_TRACES=(bool, False),
     FRONTEND_CACHE_CLOUDFLARE_BEARER_TOKEN=(str, ""),
     FRONTEND_CACHE_CLOUDFLARE_ZONEID=(str, ""),
@@ -56,7 +56,6 @@ env = environ.Env(
     HEROKU_RELEASE_VERSION=(str, None),
     INDEX_PAGE_CACHE_TIMEOUT=(int, 60 * 60 * 24),
     MOZFEST_DOMAIN_REDIRECT_ENABLED=(bool, False),
-    NETWORK_SITE_URL=(str, ""),
     PETITION_TEST_CAMPAIGN_ID=(str, ""),
     PNI_STATS_DB_URL=(str, None),
     PULSE_API_DOMAIN=(str, ""),
@@ -88,6 +87,7 @@ env = environ.Env(
     SCOUT_KEY=(str, ""),
     WAGTAILADMIN_BASE_URL=(str, ""),
     PATTERN_LIBRARY_ENABLED=(bool, False),
+    WAGTAIL_AB_TESTING_WORKER_TOKEN=(str, ""),
 )
 
 # Read in the environment
@@ -142,7 +142,7 @@ APP_DIR = app()
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = FILEBROWSER_DEBUG = env("DEBUG")
+DEBUG = env("DEBUG")
 DEBUG_TOOLBAR_ENABLED = env("DEBUG_TOOLBAR_ENABLED")
 
 # SECURITY WARNING: same as above!
@@ -158,11 +158,8 @@ TARGET_DOMAINS = env("TARGET_DOMAINS")
 # Temporary Redirect for Mozilla Festival domain
 MOZFEST_DOMAIN_REDIRECT_ENABLED = env("MOZFEST_DOMAIN_REDIRECT_ENABLED")
 
-if env("FILEBROWSER_DEBUG") or DEBUG != env("FILEBROWSER_DEBUG"):
-    FILEBROWSER_DEBUG = env("FILEBROWSER_DEBUG")
-
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
-CSRF_TRUSTED_ORIGINS = ALLOWED_HOSTS
+CSRF_TRUSTED_ORIGINS = env("CSRF_TRUSTED_ORIGINS")
 ALLOWED_REDIRECT_HOSTS = ALLOWED_HOSTS
 USE_X_FORWARDED_HOST = env("USE_X_FORWARDED_HOST")
 
@@ -190,13 +187,19 @@ TESTING = "test" in sys.argv or "pytest" in sys.argv
 # Do not enable for production!
 PATTERN_LIBRARY_ENABLED = env("PATTERN_LIBRARY_ENABLED")
 
+# Wagtail AB Testing Cloudflare worker token
+# This is used to authenticate the worker that handles the caching for A/B testing
+# Not enabled on local development
+if not DEBUG:
+    WAGTAIL_AB_TESTING_WORKER_TOKEN = env("WAGTAIL_AB_TESTING_WORKER_TOKEN")
+
 INSTALLED_APPS = list(
     filter(
         None,
         [
             "scout_apm.django",
             "whitenoise.runserver_nostatic",
-            "networkapi.filebrowser_s3" if USE_S3 else None,
+            "networkapi.s3_file_storage" if USE_S3 else None,
             "social_django" if SOCIAL_SIGNIN else None,
             "django.contrib.admin",
             "django.contrib.auth",
@@ -218,14 +221,12 @@ INSTALLED_APPS = list(
             "wagtail.images",
             "wagtail.search",
             "wagtail.admin",
-            "wagtail.contrib.legacy.richtext",
             "wagtail",
             "wagtail.contrib.forms",
             "wagtail.contrib.redirects",
             "wagtail.contrib.routable_page",
             "wagtail.contrib.styleguide" if DEBUG else None,
             "wagtail.contrib.table_block",
-            "wagtail.contrib.modeladmin",
             "wagtail.contrib.frontend_cache",
             "wagtail.contrib.settings",
             "wagtail_color_panel",
@@ -236,6 +237,7 @@ INSTALLED_APPS = list(
             "wagtail_footnotes",
             "modelcluster",
             "taggit",
+            "wagtail_ab_testing",
             # Base wagtail localization
             "wagtail_localize",
             "wagtail_localize.locales",
@@ -266,6 +268,7 @@ INSTALLED_APPS = list(
             "networkapi.donate",
             "networkapi.donate_banner",
             "networkapi.reports",
+            "networkapi.nav",
             "pattern_library" if PATTERN_LIBRARY_ENABLED else None,
             "networkapi.project_styleguide",
         ],
@@ -280,11 +283,11 @@ MIDDLEWARE = list(
             "corsheaders.middleware.CorsMiddleware",
             "django.middleware.security.SecurityMiddleware",
             "django.middleware.clickjacking.XFrameOptionsMiddleware",
-            "networkapi.utility.middleware.ReferrerMiddleware",
             "networkapi.utility.middleware.XRobotsTagMiddleware" if XROBOTSTAG_ENABLED else None,
             "whitenoise.middleware.WhiteNoiseMiddleware",
             "django.middleware.gzip.GZipMiddleware",
             "debug_toolbar.middleware.DebugToolbarMiddleware" if DEBUG_TOOLBAR_ENABLED else None,
+            "networkapi.utility.middleware.NormalizeLocaleMiddleware",
             "networkapi.utility.middleware.TargetDomainRedirectMiddleware",
             "django.contrib.sessions.middleware.SessionMiddleware",
             #
@@ -366,7 +369,7 @@ TEMPLATES = [
                 "localization": "networkapi.wagtailpages.templatetags.localization",
                 "mini_site_tags": "networkapi.wagtailpages.templatetags.mini_site_tags",
                 "custom_image_tags": "networkapi.wagtailpages.templatetags.custom_image_tags",
-                "nav_tags": "networkapi.utility.templatetags.nav_tags",
+                "nav_tags": "networkapi.nav.templatetags.nav_tags",
                 "primary_page_tags": "networkapi.wagtailpages.templatetags.primary_page_tags",
                 "settings_value": "networkapi.utility.templatetags.settings_value",
                 "wagtailcustom_tags": "networkapi.wagtailcustomization.templatetags.wagtailcustom_tags",
@@ -478,7 +481,6 @@ WAGTAIL_LOCALIZE_PRIVATE_KEY = env("WAGTAIL_LOCALIZE_PRIVATE_KEY")
 
 TIME_ZONE = "UTC"
 USE_I18N = True
-USE_L10N = True
 USE_TZ = True
 
 LOCALE_PATHS = (
@@ -517,6 +519,8 @@ WAGTAILIMAGES_INDEX_PAGE_SIZE = env("WAGTAILIMAGES_INDEX_PAGE_SIZE")
 WAGTAIL_USAGE_COUNT_ENABLED = True
 WAGTAIL_I18N_ENABLED = True
 
+WAGTAILIMAGES_EXTENSIONS = ["avif", "gif", "jpg", "jpeg", "png", "webp", "svg"]
+
 # Wagtail Frontend Cache Invalidator Settings
 
 if env("FRONTEND_CACHE_CLOUDFLARE_BEARER_TOKEN"):
@@ -553,6 +557,17 @@ WAGTAILSEARCH_BACKENDS = {
     }
 }
 
+# Wagtail redirects
+#
+# We need to use the cache backend to store the uploaded redirects file because we run multiple dynos in parallel.
+# The default (temporary) file storage is not shared between dynos, which means that the import processing could fail
+# after a successful file upload, if the actual import process is run on a different dyno.
+# See also:
+# https://github.com/MozillaFoundation/foundation.mozilla.org/issues/11559
+# https://docs.wagtail.org/en/stable/reference/settings.html#redirects
+
+WAGTAIL_REDIRECTS_FILE_STORAGE = "cache"
+
 # Rest Framework Settings
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
@@ -563,7 +578,7 @@ REST_FRAMEWORK = {
 # Storage for user generated files
 if USE_S3:
     # Use S3 to store user files if the corresponding environment var is set
-    DEFAULT_FILE_STORAGE = "networkapi.filebrowser_s3.storage.S3MediaStorage"
+    DEFAULT_FILE_STORAGE = "networkapi.s3_file_storage.storage.S3MediaStorage"
     AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
     AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME")
     AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
@@ -574,8 +589,6 @@ if USE_S3:
     MEDIA_ROOT = ""
     # This is a workaround for https://github.com/wagtail/wagtail/issues/3206
     AWS_S3_FILE_OVERWRITE = False
-
-    FILEBROWSER_DIRECTORY = env("FILEBROWSER_DIRECTORY")
 
 else:
     # Otherwise use the default filesystem storage
@@ -612,11 +625,14 @@ CSP_REPORT_URI = env("CSP_REPORT_URI", default=None)
 CSP_WORKER_SRC = env("CSP_WORKER_SRC", default=CSP_DEFAULT)
 CSP_INCLUDE_NONCE_IN = env("CSP_INCLUDE_NONCE_IN", default=[])
 
+
 # Security
 SECURE_BROWSER_XSS_FILTER = env("XSS_PROTECTION")
 SECURE_CONTENT_TYPE_NOSNIFF = env("CONTENT_TYPE_NO_SNIFF")
+SECURE_CROSS_ORIGIN_OPENER_POLICY = env("SECURE_CROSS_ORIGIN_OPENER_POLICY", default="same-origin")
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env("SET_HSTS")
 SECURE_HSTS_SECONDS = 60 * 60 * 24 * 31 * 6
+SECURE_REFERRER_POLICY = env("SECURE_REFERRER_POLICY", default="same-origin")
 SECURE_SSL_REDIRECT = env("SSL_REDIRECT")
 # Heroku goes into an infinite redirect loop without this.
 # See https://docs.djangoproject.com/en/1.10/ref/settings/#secure-ssl-redirect
@@ -624,7 +640,6 @@ if env("SSL_REDIRECT") is True:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 X_FRAME_OPTIONS = env("X_FRAME_OPTIONS")
-REFERRER_HEADER_VALUE = env("REFERRER_HEADER_VALUE")
 
 
 # Remove the default Django loggers and configure new ones
@@ -679,7 +694,6 @@ logging.config.dictConfig(LOGGING)
 FRONTEND = {
     "PULSE_API_DOMAIN": env("PULSE_API_DOMAIN"),
     "PULSE_DOMAIN": env("PULSE_DOMAIN"),
-    "NETWORK_SITE_URL": env("NETWORK_SITE_URL"),
     "TARGET_DOMAINS": env("TARGET_DOMAINS"),
     "SENTRY_DSN": env("SENTRY_DSN"),
     "RELEASE_VERSION": env("HEROKU_RELEASE_VERSION"),
@@ -701,9 +715,6 @@ USE_COMMENTO = env("USE_COMMENTO")
 
 # privacynotincluded statistics DB
 PNI_STATS_DB_URL = env("PNI_STATS_DB_URL")
-
-# Use network_url to check if we're running prod or not
-NETWORK_SITE_URL = env("NETWORK_SITE_URL")
 
 # Blog/Campaign index cache setting
 INDEX_PAGE_CACHE_TIMEOUT = env("INDEX_PAGE_CACHE_TIMEOUT")

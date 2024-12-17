@@ -1,6 +1,5 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { ReactGA } from "../../../common";
 import { getText } from "../../petition/locales";
 
 /**
@@ -45,6 +44,17 @@ function withSubmissionLogic(WrappedComponent) {
           return null;
         },
       };
+    }
+
+    /**
+     * Ensure that the parent component is informed
+     * about this component being mounted (primarily
+     * used in the context of automated testing)
+     */
+    componentDidMount() {
+      if (this.props.whenLoaded) {
+        this.props.whenLoaded();
+      }
     }
 
     /**
@@ -93,21 +103,17 @@ function withSubmissionLogic(WrappedComponent) {
      * @returns {void}
      */
     trackFormSubmit(formData) {
-      ReactGA.event({
-        category: `signup`,
-        action: `form submit tap`,
-        label: `Signup submitted from ${
-          this.props.formPosition ? this.props.formPosition : document.title
-        }`,
-      });
-
-      window.dataLayer = window.dataLayer || [];
       window.dataLayer.push({
-        event: "form_submission",
+        event: "form_submission_newsletter_signup",
+        category: `signup_submitted_from`,
+        action: `form submit tap`,
         form_type: "newsletter_signup",
         form_location: this.props.formPosition || null,
         country: formData.country,
         language: formData.language,
+        label: `Signup submitted from ${
+          this.props.formPosition ? this.props.formPosition : document.title
+        }`,
       });
     }
 
@@ -132,6 +138,7 @@ function withSubmissionLogic(WrappedComponent) {
               this.setState({
                 apiSubmissionStatus: this.API_SUBMISSION_STATUS.SUCCESS,
               });
+              this.props.handleSubmissionSuccess?.(true);
             })
             .catch(() => {
               // [TODO][FIXME] We need to let the user know that something went wrong
@@ -156,6 +163,8 @@ function withSubmissionLogic(WrappedComponent) {
       });
 
       let payload = {
+        givenNames: formData.firstName,
+        surname: formData.lastName,
         email: formData.email,
         country: formData.country,
         lang: formData.language,
@@ -175,13 +184,20 @@ function withSubmissionLogic(WrappedComponent) {
           timeout: 5000,
         });
 
-        // if the response is not 201, throw an error
-        // [TODO] We will need to update this logic depending on what comes out of
-        // https://github.com/MozillaFoundation/foundation.mozilla.org/issues/11406
         if (res.status !== 201) {
+          this.setState({
+            apiError: getText(
+              `Something went wrong and your signup wasn't completed. Please try again later.`
+            ),
+          });
           throw new Error(res.statusText);
         }
       } catch (error) {
+        this.setState({
+          apiError: getText(
+            `Something went wrong and your signup wasn't completed. Please try again later.`
+          ),
+        });
         throw error;
       }
     }
@@ -231,14 +247,16 @@ function withSubmissionLogic(WrappedComponent) {
      * Render the wrapped component with additional props
      */
     render() {
-      let { ctaHeader, ctaDescription, ...otherProps } = this.props;
+      let { forwardedRef, ctaHeader, ctaDescription, ...otherProps } =
+        this.props;
 
       return (
         <WrappedComponent
           {...otherProps}
-          innerWrapperClass="inner-wrapper"
+          ref={forwardedRef}
           noBrowserValidation={true}
           errors={this.state.errors}
+          apiError={this.state.apiError}
           onSubmit={(event, formData) => this.handleSubmit(event, formData)}
           ctaHeader={this.generateCtaHeader(ctaHeader)}
           ctaDescription={this.generateCtaDescription(ctaDescription)}
@@ -256,11 +274,15 @@ function withSubmissionLogic(WrappedComponent) {
   WithSubmissionLogicComponent.propTypes = {
     apiUrl: PropTypes.string.isRequired,
     ctaHeader: PropTypes.string.isRequired,
-    ctaDescription: PropTypes.string.isRequired,
-    formPosition: PropTypes.string.isRequired,
+    ctaDescription: PropTypes.oneOfType([PropTypes.string, PropTypes.node])
+      .isRequired,
+    formPosition: PropTypes.string,
+    whenLoaded: PropTypes.func,
   };
 
-  return WithSubmissionLogicComponent;
+  return React.forwardRef((props, ref) => {
+    return <WithSubmissionLogicComponent {...props} forwardedRef={ref} />;
+  });
 }
 
 export default withSubmissionLogic;

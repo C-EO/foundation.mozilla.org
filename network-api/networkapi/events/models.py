@@ -1,8 +1,7 @@
 from django.db import models
-from wagtail.snippets.models import register_snippet
+from wagtail.search import index
 
 
-@register_snippet
 class TitoEvent(models.Model):
     """
     Details of an event managed in Tito.
@@ -17,6 +16,12 @@ class TitoEvent(models.Model):
         max_length=255,
         help_text="ID of the question in the Tito form that asks whether a user has opted in to receive newsletters",
     )
+
+    search_fields = [
+        index.SearchField("title", boost=10),
+        index.SearchField("event_id"),
+        index.SearchField("newsletter_question_id"),
+    ]
 
     def __str__(self):
         return self.title

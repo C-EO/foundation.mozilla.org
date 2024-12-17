@@ -1,4 +1,4 @@
-from unittest import expectedFailure
+from unittest.mock import MagicMock, patch
 
 from django.urls import reverse
 from django.utils.translation import gettext
@@ -8,6 +8,7 @@ from wagtail import hooks
 from networkapi.wagtailpages.factory import buyersguide as buyersguide_factories
 from networkapi.wagtailpages.pagemodels.buyersguide.homepage import BuyersGuidePage
 from networkapi.wagtailpages.pagemodels.buyersguide.products import (
+    ProductPage,
     ProductPageEvaluation,
     reset_product_page_votes,
 )
@@ -286,8 +287,8 @@ class TestProductPageEvaluationAverageBin(BuyersGuideTestCase):
         self.assertEqual(evaluation.average_creepiness, vote_value)
         self.assertDictEqual(evaluation.average_bin, {"label": "Very creepy", "localized": gettext("Very creepy")})
 
-    def test_avg_bin_with_avg_vote_between_80_and_100(self):
-        vote_value = self.fake.random_int(min=80, max=100)
+    def test_avg_bin_with_avg_vote_between_80_and_99(self):
+        vote_value = self.fake.random_int(min=80, max=99)
         buyersguide_factories.ProductVoteFactory(evaluation=self.product_page.evaluation, value=vote_value)
         evaluation = (
             ProductPageEvaluation.objects.with_total_votes()
@@ -297,6 +298,18 @@ class TestProductPageEvaluationAverageBin(BuyersGuideTestCase):
         )
 
         self.assertEqual(evaluation.average_creepiness, vote_value)
+        self.assertDictEqual(evaluation.average_bin, {"label": "Super creepy", "localized": gettext("Super creepy")})
+
+    def test_avg_bin_with_avg_vote_equal_100(self):
+        buyersguide_factories.ProductVoteFactory(evaluation=self.product_page.evaluation, value=100)
+        evaluation = (
+            ProductPageEvaluation.objects.with_total_votes()
+            .with_total_creepiness()
+            .with_average_creepiness()
+            .get(pk=self.product_page.evaluation.pk)
+        )
+
+        self.assertEqual(evaluation.average_creepiness, 100)
         self.assertDictEqual(evaluation.average_bin, {"label": "Super creepy", "localized": gettext("Super creepy")})
 
 
@@ -377,14 +390,6 @@ class TestProductPageEvaluationPrefetching(BuyersGuideTestCase):
 
 
 class CreateEvaluationPostSaveSignalTests(BuyersGuideTestCase):
-    @classmethod
-    def setUpTestData(cls):
-        # Override BuyersGuidePage.subpage_types to include ProductPage
-        # If we don't, the copy page action will fail with a Permission Error
-        # since we can't add a ProductPage as a child of BuyersGuidePage
-        BuyersGuidePage.subpage_types += ["wagtailpages.ProductPage"]
-        super().setUpTestData()
-
     def setUp(self):
         super().setUp()
         self.user = self.login()
@@ -428,15 +433,36 @@ class CreateEvaluationPostSaveSignalTests(BuyersGuideTestCase):
 
         self.assertEqual(product_page.evaluation, evaluation)
         # Verify that the latest revision includes the evaluation
-        latest_revision_evaluation = product_page.latest_revision.as_page_object().evaluation
+        latest_revision_evaluation = product_page.get_latest_revision_as_object().evaluation
         self.assertIsNotNone(evaluation)
         self.assertEqual(latest_revision_evaluation, evaluation)
         # The evaluation on the product page was not changed
         product_page.refresh_from_db()
         self.assertEqual(product_page.evaluation, evaluation)
 
-    @expectedFailure
+
+# This is a bit weird, but somewhere along the copy page action
+# the GeneralProductPage.specific_class is being resolved
+# to ProductPage, which is not allowed as a child of BuyersGuidePage.
+# Thus, we need to mock the subpage_types and allowed_subpage_models to allow for
+# ProductPage to be added as a child of BuyersGuidePage. If we don't, the
+# copy page action will fail with a Permission Error since we can't add a
+# ProductPage as a child of BuyersGuidePage.
+MOCK_BG_SUBPAGE_TYPES = BuyersGuidePage.subpage_types + ["wagtailpages.ProductPage"]
+MOCK_BG_ALLOWED_SUBPAGE_MODELS = BuyersGuidePage.allowed_subpage_models() + [ProductPage]
+
+
+class AfterCopyProductPageHookTests(BuyersGuideTestCase):
+    def setUp(self):
+        super().setUp()
+        self.user = self.login()
+
     @hooks.register_temporarily("after_copy_page", reset_product_page_votes)
+    @patch.multiple(
+        BuyersGuidePage,
+        subpage_types=MagicMock(return_value=MOCK_BG_SUBPAGE_TYPES),
+        allowed_subpage_models=MagicMock(return_value=MOCK_BG_ALLOWED_SUBPAGE_MODELS),
+    )
     def test_that_copied_page_gets_evaluation(self):
         product_page = buyersguide_factories.GeneralProductPageFactory(
             parent=self.bg, title="My Product", slug="my-product"

@@ -85,7 +85,7 @@ class LatestProfileList(blocks.StructBlock):
                 profile["entry_count"] = False
                 profile["user_bio_long"] = False
 
-        except (IOError, ValueError) as exception:
+        except (OSError, ValueError) as exception:
             print(str(exception))
             pass
 
@@ -93,7 +93,6 @@ class LatestProfileList(blocks.StructBlock):
         context["profile_type"] = value["profile_type"]
         context["program_type"] = value["program_type"]
         context["program_year"] = value["year"]
-
         return context
 
     class Meta:

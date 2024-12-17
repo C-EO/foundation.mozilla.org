@@ -1,6 +1,7 @@
 from networkapi.wagtailpages.factory.libraries import rcc, research_hub
 
 from . import (
+    app_install_page,
     bannered_campaign_page,
     blog,
     buyersguide,
@@ -9,9 +10,9 @@ from . import (
     homepage,
     homepage_cause_statement_link,
     homepage_features,
+    homepage_highlights,
     homepage_partner_logos,
     homepage_take_action,
-    homepage_usable_news,
     initiatives_page,
     locale,
     opportunity,
@@ -39,7 +40,7 @@ def generate(seed):
     homepage_features.generate(seed)
     homepage_partner_logos.generate(seed)
     homepage_take_action.generate(seed)
-    homepage_usable_news.generate(seed)
+    homepage_highlights.generate(seed)
     initiatives_page.generate(seed)
     opportunity.generate(seed)
     participate_page_featured_highlights.generate(seed)
@@ -50,6 +51,7 @@ def generate(seed):
     rcc.generate(seed)
     # homepage_cause_statement_link requires child pages of homepage to exist
     homepage_cause_statement_link.generate(seed)
+    app_install_page.generate(seed)
 
 
 __all__ = [

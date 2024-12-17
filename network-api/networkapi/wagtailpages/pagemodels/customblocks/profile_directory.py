@@ -43,7 +43,7 @@ class ProfileDirectory(LatestProfileList):
         context = super().get_context(
             value,
             parent_context=parent_context,
-            no_limit=True,
+            no_limit=False,
             initial_year=initial_year,
             ordering="custom_name",
         )
@@ -118,7 +118,7 @@ class TabbedProfileDirectory(blocks.StructBlock):
                 )
 
         if errors:
-            raise StructBlockValidationError(errors)
+            raise StructBlockValidationError(block_errors=errors)
 
         return result
 
@@ -165,7 +165,7 @@ class TabbedProfileDirectory(blocks.StructBlock):
                 profile["entry_count"] = False
                 profile["user_bio_long"] = False
 
-        except (IOError, ValueError) as exception:
+        except (OSError, ValueError) as exception:
             print(str(exception))
             pass
 

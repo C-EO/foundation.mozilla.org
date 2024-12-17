@@ -5,7 +5,7 @@ from django.utils import timezone
 from wagtail.admin.panels import FieldPanel
 from wagtail.fields import RichTextField
 from wagtail.models import TranslatableMixin
-from wagtail.snippets.models import register_snippet
+from wagtail.search import index
 from wagtail_localize.fields import TranslatableField
 
 from networkapi.utility.images import get_image_upload_path
@@ -33,7 +33,6 @@ class HighlightQuerySet(models.query.QuerySet):
         )
 
 
-@register_snippet
 class Highlight(TranslatableMixin, SortableMixin):
     """
     An data type to highlight things like pulse
@@ -101,6 +100,12 @@ class Highlight(TranslatableMixin, SortableMixin):
         TranslatableField("description"),
         TranslatableField("link_label"),
         TranslatableField("footer"),
+    ]
+
+    search_fields = [
+        index.SearchField("title", boost=10),
+        index.SearchField("link_label"),
+        index.FilterField("locale_id"),
     ]
 
     objects = HighlightQuerySet.as_manager()

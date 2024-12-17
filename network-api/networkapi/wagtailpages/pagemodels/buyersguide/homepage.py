@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from django.apps import apps
 from django.conf import settings
-from django.core.cache import cache
 from django.db import models
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.text import slugify
@@ -17,6 +16,7 @@ from wagtail.admin.panels import (
     InlinePanel,
     MultiFieldPanel,
     PageChooserPanel,
+    TitleFieldPanel,
 )
 from wagtail.contrib.routable_page.models import RoutablePageMixin, route
 from wagtail.models import Orderable, Page, TranslatableMixin
@@ -25,6 +25,7 @@ from wagtail_localize.fields import SynchronizedField, TranslatableField
 from networkapi.utility import orderables
 from networkapi.wagtailpages.pagemodels.base import BasePage
 from networkapi.wagtailpages.pagemodels.buyersguide import utils as bg_utils
+from networkapi.wagtailpages.templatetags.bg_nav_tags import bg_categories_in_subnav
 from networkapi.wagtailpages.templatetags.localization import relocalize_url
 from networkapi.wagtailpages.utils import (
     get_language_from_request,
@@ -95,7 +96,9 @@ class BuyersGuidePage(RoutablePageMixin, BasePage):
     )
 
     content_panels = [
-        FieldPanel("title"),
+        TitleFieldPanel(
+            "title"
+        ),  # https://docs.wagtail.org/en/stable/releases/5.0.html#changes-to-title-slug-field-synchronisation
         MultiFieldPanel(
             children=[
                 HelpPanel(content="<h2>Main Featured Page</h2>"),
@@ -180,8 +183,8 @@ class BuyersGuidePage(RoutablePageMixin, BasePage):
         context = self.get_context(request)
         context["pagetype"] = "about"
         context["pageTitle"] = pgettext(
-            "*privacy not included can be localized.",
-            "How to use *privacy not included",
+            "*Privacy Not Included can be localized.",
+            "How to use *Privacy Not Included | Mozilla Foundation",
         )
         return render(request, "pages/buyersguide/about/how_to_use.html", context)
 
@@ -190,8 +193,8 @@ class BuyersGuidePage(RoutablePageMixin, BasePage):
         context = self.get_context(request)
         context["pagetype"] = "about"
         context["pageTitle"] = pgettext(
-            "*privacy not included can be localized.",
-            "Why we made *privacy not included",
+            "*Privacy Not Included can be localized.",
+            "Why we made *Privacy Not Included | Mozilla Foundation",
         )
         return render(request, "pages/buyersguide/about/why_we_made.html", context)
 
@@ -204,7 +207,7 @@ class BuyersGuidePage(RoutablePageMixin, BasePage):
             + " | "
             + pgettext(
                 "This can be localized. This is a reference to the “*batteries not included” mention on toys.",
-                "*privacy not included",
+                "*Privacy Not Included | Mozilla Foundation",
             )
         )
         return render(request, "pages/buyersguide/about/press.html", context)
@@ -218,7 +221,7 @@ class BuyersGuidePage(RoutablePageMixin, BasePage):
             + " | "
             + pgettext(
                 "This can be localized. This is a reference to the “*batteries not included” mention on toys.",
-                "*privacy not included",
+                "*Privacy Not Included | Mozilla Foundation",
             )
         )
         return render(request, "pages/buyersguide/about/contact.html", context)
@@ -232,7 +235,7 @@ class BuyersGuidePage(RoutablePageMixin, BasePage):
             + " | "
             + pgettext(
                 "This can be localized. This is a reference to the “*batteries not included” mention on toys.",
-                "*privacy not included",
+                "*Privacy Not Included | Mozilla Foundation",
             )
         )
         return render(request, "pages/buyersguide/about/methodology.html", context)
@@ -246,7 +249,7 @@ class BuyersGuidePage(RoutablePageMixin, BasePage):
             + " | "
             + pgettext(
                 "This can be localized. This is a reference to the “*batteries not included” mention on toys.",
-                "*privacy not included",
+                "*Privacy Not Included | Mozilla Foundation",
             )
         )
         return render(request, "pages/buyersguide/contest.html", context)
@@ -263,7 +266,7 @@ class BuyersGuidePage(RoutablePageMixin, BasePage):
 
     @route(r"^categories/(?P<slug>[\w\W]+)/", name="category-view")
     def categories_page(self, request, slug):
-        context = self.get_context(request, bypass_products=True)
+        context = self.get_context(request)
         language_code = get_language_from_request(request)
         slug = slugify(slug)
 
@@ -287,26 +290,20 @@ class BuyersGuidePage(RoutablePageMixin, BasePage):
             category.parent = category.parent.localized
 
         authenticated = request.user.is_authenticated
-        key = f"cat_product_dicts_{slug}_auth" if authenticated else f"cat_product_dicts_{slug}_live"
-        key = f"{language_code}_{key}"
-        products = cache.get(key)
         exclude_cat_ids = [excats.category.id for excats in self.excluded_categories.all()]
 
         ProductPage = apps.get_model(app_label="wagtailpages", model_name="ProductPage")
-        if products is None:
-            products = bg_utils.get_product_subset(
-                self.cutoff_date,
-                authenticated,
-                key,
-                ProductPage.objects.exclude(product_categories__category__id__in=exclude_cat_ids),
-                language_code=language_code,
-            )
+        products = bg_utils.get_product_subset(
+            self.cutoff_date,
+            authenticated,
+            ProductPage.objects.exclude(product_categories__category__id__in=exclude_cat_ids),
+            language_code=language_code,
+        )
 
         context["category"] = slug
         context["current_category"] = category
         context["products"] = products
-        context["pageTitle"] = f'{category.name} | {gettext("Privacy & security guide")}' f" | Mozilla Foundation"
-        context["template_cache_key_fragment"] = f"{category.slug}_{request.LANGUAGE_CODE}"
+        context["pageTitle"] = f'{category.name} | {gettext("Privacy & Security Guide")}' f" | Mozilla Foundation"
 
         # Checking if category has custom metadata, if so, update the share image and description.
         if category.share_image:
@@ -323,8 +320,7 @@ class BuyersGuidePage(RoutablePageMixin, BasePage):
         sitemap = super().get_sitemap_urls(request)
         last_modified = self.last_published_at or self.latest_revision_created_at
         # Add all the available Buyers Guide categories to the sitemap
-        BuyersGuideProductCategory = apps.get_model(app_label="wagtailpages", model_name="BuyersGuideProductCategory")
-        categories = BuyersGuideProductCategory.objects.filter(hidden=False)
+        categories = bg_categories_in_subnav()
         for category in categories:
             sitemap.append(
                 {
@@ -352,40 +348,24 @@ class BuyersGuidePage(RoutablePageMixin, BasePage):
         return sitemap
 
     def get_context(self, request, *args, **kwargs):
-        bypass_products = kwargs.pop("bypass_products", False)
         context = super().get_context(request, *args, **kwargs)
         language_code = get_language_from_request(request)
 
         authenticated = request.user.is_authenticated
-        key = "home_product_dicts_authed" if authenticated else "home_product_dicts_live"
-        key = f"{key}_{language_code}"
-        products = cache.get(key)
         exclude_cat_ids = [excats.category.id for excats in self.excluded_categories.all()]
 
         ProductPage = apps.get_model(app_label="wagtailpages", model_name="ProductPage")
-        if not bypass_products and products is None:
-            products = bg_utils.get_product_subset(
-                self.cutoff_date,
-                authenticated,
-                key,
-                ProductPage.objects.exclude(product_categories__category__id__in=exclude_cat_ids),
-                language_code=language_code,
-            )
+        products = bg_utils.get_product_subset(
+            self.cutoff_date,
+            authenticated,
+            ProductPage.objects.exclude(product_categories__category__id__in=exclude_cat_ids),
+            language_code=language_code,
+        )
 
-        BuyersGuideProductCategory = apps.get_model(app_label="wagtailpages", model_name="BuyersGuideProductCategory")
-        category_cache_key = f"pni_home_categories_{language_code}"
-        categories = cache.get(category_cache_key)
-        if not categories:
-            categories = BuyersGuideProductCategory.objects.filter(hidden=False, locale__language_code=language_code)
-            categories = bg_utils.localize_categories(categories)
-            cache.get_or_set(category_cache_key, categories, 24 * 60 * 60)  # Set cache for 24h
-
-        context["categories"] = categories
         context["current_category"] = None
         context["featured_cta"] = self.call_to_action
         context["products"] = products
         context["web_monetization_pointer"] = settings.WEB_MONETIZATION_POINTER
-        context["template_cache_key_fragment"] = f"pni_home_{request.LANGUAGE_CODE}"
         return context
 
     def get_editorial_content_index(self):
@@ -407,9 +387,10 @@ class BuyersGuidePage(RoutablePageMixin, BasePage):
             return None
 
     def get_hero_supporting_pages(self) -> list[Union["BuyersGuideArticlePage", "BuyersGuideCampaignPage"]]:
-        supporting_pages_pks = self.hero_supporting_page_relations.all().values("supporting_page__pk")
-        supporting_pages = Page.objects.filter(pk__in=supporting_pages_pks)
-        supporting_pages = localize_queryset(supporting_pages)
+        supporting_pages = Page.objects.filter(bg_homepage_supporting_page_relation__page=self).order_by(
+            "bg_homepage_supporting_page_relation__sort_order"
+        )
+        supporting_pages = localize_queryset(supporting_pages, preserve_order=True)
         return supporting_pages.specific()
 
     def get_featured_articles(self) -> list["BuyersGuideArticlePage"]:
@@ -446,6 +427,7 @@ class BuyersGuidePageHeroSupportingPageRelation(TranslatableMixin, Orderable):
         on_delete=models.CASCADE,
         null=False,
         blank=False,
+        related_name="bg_homepage_supporting_page_relation",
     )
 
     panels = [

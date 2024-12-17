@@ -13,6 +13,7 @@ from django.views.generic.base import RedirectView
 from django.views.i18n import JavaScriptCatalog, set_language
 from wagtail.admin import urls as wagtailadmin_urls
 from wagtail.documents import urls as wagtaildocs_urls
+from wagtail_ab_testing import urls as ab_testing_urls
 from wagtail_footnotes import urls as footnotes_urls
 
 from networkapi.redirects import foundation_redirects
@@ -85,16 +86,16 @@ urlpatterns = list(
             # Apple Pay domain association
             path(".well-known/apple-developer-merchantid-domain-association", apple_pay_domain_association_view),
             # social-sign-on routes so that Google auth works
-            re_path(r"^soc/", include("social_django.urls", namespace="social")),
+            path("soc/", include("social_django.urls", namespace="social")),
             # CSRF endpoint
             re_path(r"^api/csrf/", csrf_response),
             # network API routes:
-            re_path(r"^api/campaign/", include("networkapi.campaign.urls")),
-            re_path(r"^api/highlights/", include("networkapi.highlights.urls")),
-            re_path(r"^api/news/", include("networkapi.news.urls")),
+            path("api/campaign/", include("networkapi.campaign.urls")),
+            path("api/highlights/", include("networkapi.highlights.urls")),
+            path("api/news/", include("networkapi.news.urls")),
             re_path(r"^environment.json", EnvVariablesView.as_view()),
             re_path(r"^help/", review_app_help_view, name="Review app help"),
-            re_path(r"^tito/", include("networkapi.events.urls")),
+            path("tito/", include("networkapi.events.urls")),
             # Wagtail CMS routes
             re_path(
                 r"^how-do-i-wagtail/",
@@ -102,9 +103,9 @@ urlpatterns = list(
                 name="how-do-i-wagtail",
             ),
             path("", include(image_url_tag_urls)),
-            re_path(r"^cms/", include(wagtailadmin_urls)),
+            path("cms/", include(wagtailadmin_urls)),
             re_path(r"^en/cms/", RedirectView.as_view(url="/cms/")),
-            re_path(r"^documents/", include(wagtaildocs_urls)),
+            path("documents/", include(wagtaildocs_urls)),
             # This shims sentry's reporting URL, so that when you're running with
             # sentry enabled locally, rather than sending sentry errors over to the
             # remote service (which is guaranteed to reject the data), we generate
@@ -119,6 +120,8 @@ urlpatterns = list(
             path("jsi18n/", JavaScriptCatalog.as_view(), name="javascript-catalog"),
             # Wagtail Footnotes package
             path("footnotes/", include(footnotes_urls)),
+            # Wagtail A/B Testing package
+            path("abtesting/", include(ab_testing_urls)),
             # redirect /pt to /pt-BR. See https://github.com/mozilla/foundation.mozilla.org/issues/5993
             re_path(
                 r"^pt/(?P<rest>.*)",
@@ -138,7 +141,7 @@ urlpatterns += i18n_patterns(
     # Redirects
     *foundation_redirects(),
     # wagtail-managed data
-    re_path(r"", include(wagtail_urls)),
+    path("", include(wagtail_urls)),
     path("sitemap.xml", cache_page(86400)(sitemap)),
 )
 

@@ -1,10 +1,11 @@
-import Swiper, {
+import Swiper from "swiper";
+import {
   A11y,
   Autoplay,
   Pagination,
   Navigation,
   Keyboard,
-} from "swiper";
+} from "swiper/modules";
 
 /**
  * Image Carousel on Mozfest Homepage Hero Section.
@@ -21,7 +22,7 @@ class Carousel {
       watchOverflow: true,
       centeredSlides: false,
       simulateTouch: true,
-      slidesPerView: 1,
+      slidesPerView: this.node.dataset.slidesPerView || 1,
       autoHeight: false,
       keyboard: {
         enabled: true,
@@ -37,8 +38,8 @@ class Carousel {
       // Responsive breakpoints
       breakpoints: {
         992: {
-          slidesPerView: 2,
-          spaceBetween: 30,
+          slidesPerView: this.node.dataset.desktopSlidesPerView || 2,
+          spaceBetween: this.node.dataset.desktopSpaceBetween || 30,
         },
       },
     });

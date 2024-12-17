@@ -4,8 +4,7 @@
 {% block body_id %}dear-internet{% endblock %}
 
 {% block extended_head %}
-    <link rel="preconnect" href="https://fonts.gstatic.com">
-    <link href="https://fonts.googleapis.com/css2?family=Caveat&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static "_fonts/css/caveat.min.css" %}">
 {% endblock %}
 
 {% block content %}
@@ -60,7 +59,7 @@
                     <div class="row">
                         <div class="offset-md-1 col-md-1 text-center d-print-none">
                             <div class="sticky-side d-none d-md-flex justify-content-lg-end">
-                                {% include "../fragments/share-buttons.html" with page=page version="mini" layout="stacked" share_text=share_text_translated %}
+                                {% include "fragments/share-buttons.html" with page=page version="mini" layout="stacked" share_text=share_text_translated %}
                             </div>
                         </div>
                         <div class="{{ main_content_col }}">
@@ -69,7 +68,7 @@
                             {% endfor %}
                         </div>
                         <div class="{{ main_content_col }} d-block d-md-none d-print-none text-center">
-                            {% include "../fragments/share-buttons.html" with page=page version="mini" share_text=share_text_translated %}
+                            {% include "fragments/share-buttons.html" with page=page version="mini" share_text=share_text_translated %}
                         </div>
                     </div>
                 </div>
@@ -83,8 +82,10 @@
                         {% if page.cta %}
                             <p>{{ page.cta }}</p>
                         {% endif %}
-                        {% if page.cta_button_text and page.cta_button_link %}
-                            <a class="tw-btn-secondary tw-heart-glyph my-3" href="{{ page.cta_button_link }}" target="_blank">{{ page.cta_button_text }}</a>
+                        {% if page.cta_button %}
+                            {% with cta_button=page.cta_button.0.value %}
+                                <a class="tw-btn-secondary tw-heart-glyph my-3" href="{{ cta_button.url }}" {% if cta_button.new_window %}target="_blank"{% endif %}>{{ cta_button.label }}</a>
+                            {% endwith %}
                         {% endif %}
                     </div>
                 </div>
@@ -100,5 +101,5 @@
 {% endblock %}
 
 {% block footer_block %}
-    {% include "partials/footer.html" %}
+    {% include "fragments/footer.html" %}
 {% endblock %}
